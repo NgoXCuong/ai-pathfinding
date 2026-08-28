@@ -131,7 +131,7 @@ def compare(req: CompareRequest):
         "comparison": {
             "time_improvement_pct": improvement(dijk["execution_time"], astar["execution_time"]),
             "nodes_improvement_pct": improvement(dijk["nodes_visited"], astar["nodes_visited"]),
-            "same_path_length": dijk["distance"] == astar["distance"],
+            "same_path_length": abs((dijk["distance"] or 0) - (astar["distance"] or 0)) < 1e-6,
             "winner_time": "astar" if astar["execution_time"] < dijk["execution_time"] else "dijkstra",
             "winner_nodes": "astar" if astar["nodes_visited"] < dijk["nodes_visited"] else "dijkstra",
         },

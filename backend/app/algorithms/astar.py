@@ -23,7 +23,7 @@ Hàm đánh giá:
   → Heuristic phải là CONSISTENT (Monotone): h(n) ≤ w(n,n') + h(n')
      (đảm bảo f không giảm dọc theo path)
 
-=== SO SÁNH 3 HEURISTIC ===
+=== SO SÁNH 4 HEURISTIC ===
 
 1. Manhattan Distance: h(n) = |Δrow| + |Δcol|
    - Phù hợp nhất cho grid 4 HƯỚNG (lên/xuống/trái/phải)
@@ -36,13 +36,21 @@ Hàm đánh giá:
    - Với grid 4 hướng: h(n) < Manhattan(n) → A* duyệt nhiều node hơn Manhattan
 
 3. Chebyshev Distance: h(n) = max(|Δrow|, |Δcol|)
-   - Phù hợp nhất cho grid 8 HƯỚNG (có thể đi chéo)
-   - Admissible với chuyển động 8 hướng (chi phí chéo = 1)
-   - KHÔNG phù hợp khi chi phí chéo = √2 (sẽ overestimate → không optimal)
+   - Phù hợp cho grid 8 HƯỚNG khi chi phí chéo = 1.0
+   - VẪN admissible & consistent khi chi phí chéo = √2:
+     mỗi bước di chuyển tốn ≥ 1.0 và cần ≥ max(|Δrow|, |Δcol|) bước
+     → h(n) ≤ chi phí thực tế (không bao giờ overestimate)
+   - Nhưng under-estimate nhiều hơn octile → A* duyệt nhiều node hơn
+
+4. Octile Distance: h(n) = (√2 - 1)·min(|Δr|,|Δc|) + max(|Δr|,|Δc|)
+   - Heuristic CHÍNH XÁC NHẤT (tightest) cho grid 8 hướng với chi phí chéo = √2
+   - Admissible & Consistent: bằng đúng chi phí tối thiểu khi không có vật cản
+   - Đây là lựa chọn tốt nhất cho di chuyển 8 hướng (thay cho Euclidean)
 
 Lưu ý thực tế (trong code này):
-  - Chi phí chéo = 1.414 (√2) → Euclidean là heuristic tốt nhất cho grid 8 hướng
+  - Chi phí chéo = 1.414 (√2) → Octile là heuristic tốt nhất cho grid 8 hướng
   - Chi phí thẳng = 1.0 → Manhattan là heuristic tốt nhất cho grid 4 hướng
+  - Euclidean luôn admissible & consistent nhưng lỏng hơn Octile
 
 === ĐỘ PHỨC TẠP ===
   - Thời gian: O((V + E) log V) — tương đương Dijkstra về worst case
@@ -88,15 +96,28 @@ def heuristic_chebyshev(a: tuple[int, int], b: tuple[int, int]) -> float:
     """
     Khoảng cách Chebyshev: max(|Δrow|, |Δcol|)
     Tốt nhất cho grid 8 hướng với chi phí chéo = 1.0.
-    KHÔNG admissible khi chi phí chéo = √2 (có thể overestimate).
+    Vẫn admissible & consistent khi chi phí chéo = √2 (mỗi bước tốn ≥ 1.0),
+    nhưng under-estimate hơn octile distance.
     """
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+
+
+def heuristic_octile(a: tuple[int, int], b: tuple[int, int]) -> float:
+    """
+    Khoảng cách Octile: (√2 - 1)·min(|Δr|, |Δc|) + max(|Δr|, |Δc|)
+    Tightest admissible & consistent cho grid 8 hướng với chi phí chéo = √2.
+    Bằng đúng chi phí tối thiểu thực tế khi không có vật cản.
+    """
+    dr = abs(a[0] - b[0])
+    dc = abs(a[1] - b[1])
+    return (math.sqrt(2) - 1) * min(dr, dc) + max(dr, dc)
 
 
 HEURISTICS = {
     "manhattan": heuristic_manhattan,
     "euclidean": heuristic_euclidean,
     "chebyshev": heuristic_chebyshev,
+    "octile": heuristic_octile,
 }
 
 # ─────────────────────────────── Grid A* ──────────────────────────────────
@@ -148,9 +169,7 @@ def astar_grid(
     heap = [(f_start, 0.0, start[0], start[1])]
     prev: dict[tuple, tuple | None] = {start: None}
 
-    # open_set  : Tập node đã thêm vào heap nhưng chưa xử lý
     # closed_set: Tập node đã xử lý xong (đã cố định g tối ưu)
-    open_set: set[tuple] = {start}
     closed_set: set[tuple] = set()
 
     visited_order: list[tuple[int, int]] = []
@@ -166,7 +185,6 @@ def astar_grid(
         if current in closed_set:
             continue
 
-        open_set.discard(current)
         closed_set.add(current)  # Đưa vào closed set: g(n) đã tối ưu
 
         if record_visited and current != start and current != goal:
@@ -198,7 +216,6 @@ def astar_grid(
                 f_n = tentative_g + h_func(neighbor, goal)
                 prev[neighbor] = current
                 heapq.heappush(heap, (f_n, tentative_g, nr, nc))
-                open_set.add(neighbor)
 
     t1 = time.perf_counter()
     execution_time = (t1 - t0) * 1000

@@ -4,7 +4,14 @@ Dùng singleton pattern để chỉ load 1 lần khi server khởi động.
 """
 import math
 import logging
+import threading
 from typing import Any
+
+try:
+    from scipy.spatial import cKDTree
+    _SCIPY_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _SCIPY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +20,13 @@ _node_positions: dict | None = None
 _adj_list: dict | None = None
 _city_name: str = "Hoan Kiem, Hanoi, Vietnam"
 _graph_stats: dict = {}
+
+# K-d tree để tìm node gần nhất nhanh (O(log V) thay vì O(V))
+_ktree: Any = None
+_ktree_ids: list[Any] = []
+
+# Chống race condition khi nhiều request tải đồ thị đồng thời
+_graph_lock = threading.Lock()
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -35,11 +49,36 @@ SUPPORTED_REGIONS = {
     "danang": "Da Nang, Vietnam",
 }
 
-async def load_osm_graph(region_id: str) -> bool:
+
+def _rebuild_ktree() -> None:
+    """
+    Xây dựng lại k-d tree từ node_positions hiện tại.
+    Gọi mỗi khi _node_positions thay đổi.
+    """
+    global _ktree, _ktree_ids
+    _ktree = None
+    _ktree_ids = []
+    if not _SCIPY_AVAILABLE or not _node_positions:
+        return
+    try:
+        ids = list(_node_positions.keys())
+        coords = [_node_positions[nid] for nid in ids]
+        _ktree = cKDTree(coords)
+        _ktree_ids = ids
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"Không thể dựng k-d tree, dùng brute-force: {e}")
+        _ktree = None
+        _ktree_ids = []
+
+
+def load_osm_graph(region_id: str) -> bool:
     """
     Tải đồ thị OSM cho khu vực (Region ID). Chỉ tải 1 lần.
     Quy trình: Kiểm tra RAM -> Kiểm tra Disk (.pkl) -> Kiểm tra Disk (.graphml) -> Tải từ Internet.
     Trả về True nếu thành công.
+
+    Lưu ý: Hàm này là blocking (osmnx/IO). Nên gọi từ endpoint sync để FastAPI
+    chạy trong threadpool, không chặn event loop.
     """
     global _graph_cache, _node_positions, _adj_list, _city_name, _graph_stats
 
@@ -50,91 +89,100 @@ async def load_osm_graph(region_id: str) -> bool:
     if region_id not in SUPPORTED_REGIONS:
         logger.error(f"Khu vực không được hỗ trợ: {region_id}")
         return False
-        
-    city_query = SUPPORTED_REGIONS[region_id]
 
-    try:
-        import osmnx as ox
-        ox.settings.log_console = False
-        
-        # Đảm bảo thư mục lưu trữ tồn tại
-        data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "osm")
-        cache_dir = os.path.join(os.path.dirname(__file__), "..", "data", "cache")
-        os.makedirs(data_dir, exist_ok=True)
-        os.makedirs(cache_dir, exist_ok=True)
-        
-        filepath = os.path.join(data_dir, f"{region_id}.graphml")
-        cache_path = os.path.join(cache_dir, f"{region_id}.pkl")
+    # Double-checked locking: tránh 2 request cùng lúc tải 2 thành phố khác nhau
+    with _graph_lock:
+        if _adj_list is not None and _city_name == region_id:
+            return True
 
-        # 1. Kiểm tra cache nhị phân (.pkl)
-        if os.path.exists(cache_path):
-            logger.info(f"Đang nạp cache nhị phân cho {region_id} từ {cache_path}...")
-            with open(cache_path, "rb") as f:
-                cache_data = pickle.load(f)
-            
-            _node_positions = cache_data["positions"]
-            _adj_list = cache_data["adj_list"]
-            _graph_stats = cache_data["stats"]
+        city_query = SUPPORTED_REGIONS[region_id]
+
+        try:
+            import osmnx as ox
+            ox.settings.log_console = False
+
+            # Đảm bảo thư mục lưu trữ tồn tại
+            data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "osm")
+            cache_dir = os.path.join(os.path.dirname(__file__), "..", "data", "cache")
+            os.makedirs(data_dir, exist_ok=True)
+            os.makedirs(cache_dir, exist_ok=True)
+
+            filepath = os.path.join(data_dir, f"{region_id}.graphml")
+            cache_path = os.path.join(cache_dir, f"{region_id}.pkl")
+
+            # 1. Kiểm tra cache nhị phân (.pkl)
+            if os.path.exists(cache_path):
+                logger.info(f"Đang nạp cache nhị phân cho {region_id} từ {cache_path}...")
+                with open(cache_path, "rb") as f:
+                    cache_data = pickle.load(f)
+
+                _node_positions = cache_data["positions"]
+                _adj_list = cache_data["adj_list"]
+                _graph_stats = cache_data["stats"]
+                _city_name = region_id
+                _rebuild_ktree()
+                logger.info(
+                    f"Đã nạp cache thành công: {_graph_stats['total_nodes']} nodes, "
+                    f"{_graph_stats['total_edges']} edges"
+                )
+                return True
+
+            # 2. Nếu không có cache, kiểm tra file chuẩn (.graphml) hoặc tải từ Internet
+            G = None
+            if os.path.exists(filepath):
+                logger.info(f"Đang nạp đồ thị {region_id} từ ổ đĩa ({filepath})...")
+                G = ox.load_graphml(filepath)
+            else:
+                logger.info(f"Đang tải đồ thị OSM cho {city_query} từ Internet...")
+                G = ox.graph_from_place(city_query, network_type="drive", simplify=True)
+                logger.info(f"Đang lưu đồ thị xuống ổ đĩa ({filepath})...")
+                ox.save_graphml(G, filepath)
+
+            _graph_cache = G
             _city_name = region_id
+
+            # Tạo node_positions: {node_id: (lat, lon)}
+            _node_positions = {
+                node: (data["y"], data["x"])
+                for node, data in G.nodes(data=True)
+            }
+
+            # Tạo adjacency list: {node_id: [(neighbor_id, weight_meters), ...]}
+            _adj_list = {}
+            for u, v, data in G.edges(data=True):
+                # OSNx cache đôi khi có thể trả về string "1.0", convert sang float
+                length = float(data.get("length", 1.0))
+                _adj_list.setdefault(u, []).append((v, length))
+                # OSM drive graph là có hướng, không thêm chiều ngược
+
+            _graph_stats = {
+                "total_nodes": G.number_of_nodes(),
+                "total_edges": G.number_of_edges(),
+                "city": region_id,
+            }
+
+            # Xây dựng lại k-d tree cho lần dùng sau
+            _rebuild_ktree()
+
+            # 3. LƯU CACHE NHỊ PHÂN CHO LẦN SAU
+            cache_data = {
+                "positions": _node_positions,
+                "adj_list": _adj_list,
+                "stats": _graph_stats
+            }
+            logger.info(f"Đang lưu cache nhị phân xuống {cache_path}...")
+            with open(cache_path, "wb") as f:
+                pickle.dump(cache_data, f)
+
             logger.info(
-                f"Đã nạp cache thành công: {_graph_stats['total_nodes']} nodes, "
+                f"Đã tải OSM graph: {_graph_stats['total_nodes']} nodes, "
                 f"{_graph_stats['total_edges']} edges"
             )
             return True
 
-        # 2. Nếu không có cache, kiểm tra file chuẩn (.graphml) hoặc tải từ Internet
-        G = None
-        if os.path.exists(filepath):
-            logger.info(f"Đang nạp đồ thị {region_id} từ ổ đĩa ({filepath})...")
-            G = ox.load_graphml(filepath)
-        else:
-            logger.info(f"Đang tải đồ thị OSM cho {city_query} từ Internet...")
-            G = ox.graph_from_place(city_query, network_type="drive", simplify=True)
-            logger.info(f"Đang lưu đồ thị xuống ổ đĩa ({filepath})...")
-            ox.save_graphml(G, filepath)
-
-        _graph_cache = G
-        _city_name = region_id
-
-        # Tạo node_positions: {node_id: (lat, lon)}
-        _node_positions = {
-            node: (data["y"], data["x"])
-            for node, data in G.nodes(data=True)
-        }
-
-        # Tạo adjacency list: {node_id: [(neighbor_id, weight_meters), ...]}
-        _adj_list = {}
-        for u, v, data in G.edges(data=True):
-            # OSNx cache đôi khi có thể trả về string "1.0", convert sang float
-            length = float(data.get("length", 1.0))
-            _adj_list.setdefault(u, []).append((v, length))
-            # OSM drive graph là có hướng, không thêm chiều ngược
-
-        _graph_stats = {
-            "total_nodes": G.number_of_nodes(),
-            "total_edges": G.number_of_edges(),
-            "city": region_id,
-        }
-        
-        # 3. LƯU CACHE NHỊ PHÂN CHO LẦN SAU
-        cache_data = {
-            "positions": _node_positions,
-            "adj_list": _adj_list,
-            "stats": _graph_stats
-        }
-        logger.info(f"Đang lưu cache nhị phân xuống {cache_path}...")
-        with open(cache_path, "wb") as f:
-            pickle.dump(cache_data, f)
-
-        logger.info(
-            f"Đã tải OSM graph: {_graph_stats['total_nodes']} nodes, "
-            f"{_graph_stats['total_edges']} edges"
-        )
-        return True
-
-    except Exception as e:
-        logger.error(f"Lỗi khi tải OSM graph: {e}")
-        return False
+        except Exception as e:
+            logger.error(f"Lỗi khi tải OSM graph: {e}")
+            return False
 
 
 def get_adj_list() -> dict | None:
@@ -150,13 +198,21 @@ def get_graph_stats() -> dict:
 
 
 def find_nearest_node(lat: float, lon: float) -> Any | None:
-    """Tìm node gần nhất với tọa độ GPS cho trước."""
+    """
+    Tìm node gần nhất với tọa độ GPS cho trước.
+    Ưu tiên dùng k-d tree (O(log V)); fallback brute-force O(V) nếu không có scipy.
+    """
     if _node_positions is None:
         return None
 
+    # K-d tree: nhanh, O(log V) cho mỗi truy vấn
+    if _ktree is not None and _ktree_ids:
+        _, idx = _ktree.query([lat, lon], k=1)
+        return _ktree_ids[idx]
+
+    # Fallback brute-force (haversine chính xác hơn cho toàn cầu)
     best_node = None
     best_dist = float("inf")
-
     for node_id, (node_lat, node_lon) in _node_positions.items():
         d = _haversine(lat, lon, node_lat, node_lon)
         if d < best_dist:

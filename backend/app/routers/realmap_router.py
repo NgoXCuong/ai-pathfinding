@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.osm_graph import (
@@ -22,7 +22,7 @@ class RouteRequest(BaseModel):
     end_lat: float
     end_lon: float
     algorithm: str = "dijkstra"   # "dijkstra" | "astar"
-    heuristic: str = "euclidean"  # "euclidean" | "manhattan" | "chebyshev"
+    heuristic: str = "euclidean"  # "euclidean" | "manhattan" | "chebyshev" | "octile"
 
 
 class CompareRequest(BaseModel):
@@ -43,9 +43,12 @@ def _check_graph_loaded():
 
 
 @router.post("/load")
-async def load_graph(city: str):
-    """Tải OSM graph (chỉ cần gọi 1 lần). Có thể mất 1-2 phút."""
-    success = await load_osm_graph(city)
+def load_graph(city: str):
+    """Tải OSM graph (chỉ cần gọi 1 lần). Có thể mất 1-2 phút.
+
+    Endpoint sync: FastAPI chạy trong threadpool nên không chặn event loop.
+    """
+    success = load_osm_graph(city)
     if not success:
         raise HTTPException(status_code=500, detail="Không thể tải OSM graph")
     return {"message": "Đã tải thành công", **get_graph_stats()}
@@ -61,10 +64,10 @@ def graph_stats():
 
 
 @router.post("/route")
-async def route(req: RouteRequest):
+def route(req: RouteRequest):
     """Tìm đường đi giữa 2 tọa độ GPS."""
     # Đảm bảo đồ thị của khu vực yêu cầu được load vào RAM
-    success = await load_osm_graph(req.city)
+    success = load_osm_graph(req.city)
     if not success:
         raise HTTPException(status_code=500, detail=f"Không thể tải đồ thị cho {req.city}")
 
@@ -92,7 +95,7 @@ async def route(req: RouteRequest):
         "path_coords": path_coords,
         "execution_time": float(result["execution_time"]),
         "nodes_visited": int(result["nodes_visited"]),
-        "distance": float(result["distance"]) if result["distance"] is not None else None,
+        "distance": float(result["distance"]) if result["found"] else None,
         "steps": len(result["path"]),
         "found": bool(result["found"]),
         "start_node": int(start_node) if start_node is not None else None,
@@ -101,10 +104,10 @@ async def route(req: RouteRequest):
 
 
 @router.post("/compare")
-async def compare(req: CompareRequest):
+def compare(req: CompareRequest):
     """Chạy cả hai thuật toán và so sánh."""
     # Đảm bảo đồ thị của khu vực yêu cầu được load vào RAM
-    success = await load_osm_graph(req.city)
+    success = load_osm_graph(req.city)
     if not success:
         raise HTTPException(status_code=500, detail=f"Không thể tải đồ thị cho {req.city}")
 
@@ -137,7 +140,7 @@ async def compare(req: CompareRequest):
             "visited_coords": dijk_visited_coords,
             "execution_time": float(dijk["execution_time"]),
             "nodes_visited": int(dijk["nodes_visited"]),
-            "distance": float(dijk["distance"]) if dijk["distance"] is not None else None,
+            "distance": float(dijk["distance"]) if dijk["found"] else None,
             "steps": len(dijk["path"]),
             "found": bool(dijk["found"]),
         },
@@ -146,7 +149,7 @@ async def compare(req: CompareRequest):
             "visited_coords": astar_visited_coords,
             "execution_time": float(astar_r["execution_time"]),
             "nodes_visited": int(astar_r["nodes_visited"]),
-            "distance": float(astar_r["distance"]) if astar_r["distance"] is not None else None,
+            "distance": float(astar_r["distance"]) if astar_r["found"] else None,
             "steps": len(astar_r["path"]),
             "found": bool(astar_r["found"]),
         },
