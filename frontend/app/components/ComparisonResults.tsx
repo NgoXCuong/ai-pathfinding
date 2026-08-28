@@ -1,15 +1,84 @@
 "use client";
 
 import React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { formatMs, formatNumber } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
 import { Lightbulb, ArrowDown, ArrowUp, Equal, XCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 interface ComparisonResultsProps {
   results: any;
 }
+
+interface TheoryRow {
+  criteria: string;
+  dijkstra: React.ReactNode;
+  astar: React.ReactNode;
+}
+
+const theoryColumns: ColumnDef<TheoryRow, unknown>[] = [
+  {
+    accessorKey: "criteria",
+    header: "Tiêu chí",
+    cell: ({ row }) => <span className="font-semibold text-slate-600 text-xs uppercase">{row.original.criteria}</span>,
+  },
+  {
+    accessorKey: "dijkstra",
+    header: () => <span className="text-center block font-bold text-blue-700 text-sm">Dijkstra</span>,
+    cell: ({ row }) => <div className="text-center">{row.original.dijkstra}</div>,
+  },
+  {
+    accessorKey: "astar",
+    header: () => <span className="text-center block font-bold text-cyan-700 text-sm">A*</span>,
+    cell: ({ row }) => <div className="text-center">{row.original.astar}</div>,
+  },
+];
+
+const theoryRows: TheoryRow[] = [
+  {
+    criteria: "Loại thuật toán",
+    dijkstra: <span className="text-slate-600">Uninformed (mù)</span>,
+    astar: <span className="text-slate-600">Informed (có hướng dẫn)</span>,
+  },
+  {
+    criteria: "Hàm đánh giá",
+    dijkstra: <span className="font-mono text-blue-700 font-semibold">f(n) = g(n)</span>,
+    astar: <span className="font-mono text-cyan-700 font-semibold">f(n) = g(n) + h(n)</span>,
+  },
+  {
+    criteria: "Dùng heuristic?",
+    dijkstra: <span className="text-slate-500">❌ Không</span>,
+    astar: <span className="text-slate-700">✅ Có (h(n) ước lượng đến đích)</span>,
+  },
+  {
+    criteria: "Tối ưu (Optimal)?",
+    dijkstra: <span className="text-emerald-600 font-semibold">✅ Luôn luôn</span>,
+    astar: <span className="text-emerald-600 font-semibold">✅ Khi h admissible</span>,
+  },
+  {
+    criteria: "Đầy đủ (Complete)?",
+    dijkstra: <span className="text-emerald-600 font-semibold">✅ Có</span>,
+    astar: <span className="text-emerald-600 font-semibold">✅ Có</span>,
+  },
+  {
+    criteria: "Độ phức tạp",
+    dijkstra: <span className="font-mono text-slate-600">O((V+E) log V)</span>,
+    astar: <span className="font-mono text-slate-600">O((V+E) log V)</span>,
+  },
+  {
+    criteria: "Số node duyệt",
+    dijkstra: <span className="text-red-500 font-semibold">Nhiều hơn (mọi hướng)</span>,
+    astar: <span className="text-emerald-600 font-semibold">Ít hơn (hướng đến đích)</span>,
+  },
+  {
+    criteria: "Phù hợp khi nào",
+    dijkstra: <span className="text-slate-600 text-xs">Không biết vị trí đích<br />Không gian phi hình học</span>,
+    astar: <span className="text-slate-600 text-xs">Biết vị trí đích<br />Không gian hình học (bản đồ)</span>,
+  },
+];
 
 export default function ComparisonResults({ results }: ComparisonResultsProps) {
   const [showTheory, setShowTheory] = useState(false);
@@ -221,57 +290,11 @@ export default function ComparisonResults({ results }: ComparisonResultsProps) {
               <h4 className="text-sm font-bold text-indigo-800 uppercase">So Sánh Lý Thuyết</h4>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left px-6 py-3 font-semibold text-slate-500 uppercase text-xs">Tiêu chí</th>
-                    <th className="text-center px-6 py-3 font-bold text-blue-700 text-sm">Dijkstra</th>
-                    <th className="text-center px-6 py-3 font-bold text-cyan-700 text-sm">A*</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Loại thuật toán</td>
-                    <td className="px-6 py-3.5 text-center text-slate-600">Uninformed (mù)</td>
-                    <td className="px-6 py-3.5 text-center text-slate-600">Informed (có hướng dẫn)</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50/30">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Hàm đánh giá</td>
-                    <td className="px-6 py-3.5 text-center font-mono text-blue-700 font-semibold">f(n) = g(n)</td>
-                    <td className="px-6 py-3.5 text-center font-mono text-cyan-700 font-semibold">f(n) = g(n) + h(n)</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Dùng heuristic?</td>
-                    <td className="px-6 py-3.5 text-center text-slate-500">❌ Không</td>
-                    <td className="px-6 py-3.5 text-center text-slate-700">✅ Có (h(n) ước lượng đến đích)</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50/30">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Tối ưu (Optimal)?</td>
-                    <td className="px-6 py-3.5 text-center text-emerald-600 font-semibold">✅ Luôn luôn</td>
-                    <td className="px-6 py-3.5 text-center text-emerald-600 font-semibold">✅ Khi h admissible</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Đầy đủ (Complete)?</td>
-                    <td className="px-6 py-3.5 text-center text-emerald-600 font-semibold">✅ Có</td>
-                    <td className="px-6 py-3.5 text-center text-emerald-600 font-semibold">✅ Có</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50/30">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Độ phức tạp</td>
-                    <td className="px-6 py-3.5 text-center font-mono text-slate-600">O((V+E) log V)</td>
-                    <td className="px-6 py-3.5 text-center font-mono text-slate-600">O((V+E) log V)</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Số node duyệt</td>
-                    <td className="px-6 py-3.5 text-center text-red-500 font-semibold">Nhiều hơn (mọi hướng)</td>
-                    <td className="px-6 py-3.5 text-center text-emerald-600 font-semibold">Ít hơn (hướng đến đích)</td>
-                  </tr>
-                  <tr className="hover:bg-slate-50/50 bg-slate-50/30">
-                    <td className="px-6 py-3.5 font-semibold text-slate-600 text-xs uppercase">Phù hợp khi nào</td>
-                    <td className="px-6 py-3.5 text-center text-slate-600 text-xs">Không biết vị trí đích<br/>Không gian phi hình học</td>
-                    <td className="px-6 py-3.5 text-center text-slate-600 text-xs">Biết vị trí đích<br/>Không gian hình học (bản đồ)</td>
-                  </tr>
-                </tbody>
-              </table>
+              <DataTable
+                columns={theoryColumns}
+                data={theoryRows}
+                enableSorting={false}
+              />
             </div>
             <div className="px-6 py-4 bg-amber-50/50 border-t border-amber-100">
               <p className="text-xs text-amber-700 font-medium">

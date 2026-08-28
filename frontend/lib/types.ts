@@ -137,5 +137,5 @@ export interface HistoryItem {
 // ─── UI State ─────────────────────────────────────────────────────────────────
 export type DrawMode = "obstacle" | "erase" | "start" | "goal";
 export type AlgorithmMode = "dijkstra" | "astar" | "compare";
-export type Heuristic = "manhattan" | "euclidean" | "chebyshev";
+export type Heuristic = "manhattan" | "euclidean" | "chebyshev" | "octile";
 export type AnimationState = "idle" | "running" | "paused" | "done";

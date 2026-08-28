@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Khởi động: tạo DB tables."""
+    """Khởi động: tạo DB tables (không chặn server nếu DB chưa sẵn sàng)."""
     logger.info("Đang khởi tạo database...")
     await init_db()
-    logger.info("Database sẵn sàng.")
+    logger.info("Server sẵn sàng.")
     yield
     logger.info("Server đang tắt...")
 

@@ -1,21 +1,23 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pydantic==2.9.2
-pydantic-settings==2.5.2
+# Lưu ý: Python >= 3.14 cần các phiên bản mới hơn
+# (các phiên bản cũ không có wheel sẵn, pip sẽ phải build từ source và fail)
+fastapi>=0.115
+uvicorn[standard]>=0.30.6
+pydantic>=2.13
+pydantic-settings>=2.5.2
 
 # Database
-sqlalchemy==2.0.36
-asyncpg==0.30.0
-alembic==1.14.0
+sqlalchemy>=2.0.45
+asyncpg>=0.31.0
+alembic>=1.14.0
 
 # OSM / Graph
-osmnx==2.0.3
-networkx==3.4.2
-shapely==2.0.6
+osmnx>=2.1.0
+networkx>=3.4.2
+shapely>=2.1.0
 
 # Spatial index (k-d tree) cho tìm node gần nhất nhanh
 scipy>=1.10.0
 
 # Utilities
-python-dotenv==1.0.1
-httpx==0.27.2
+python-dotenv>=1.0.1
+httpx>=0.27.2

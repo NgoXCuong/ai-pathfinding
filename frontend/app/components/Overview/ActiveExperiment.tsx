@@ -5,7 +5,6 @@ import type { HistoryItem } from "@/lib/types";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2, Route, RotateCcw } from "lucide-react";
-import MapView from "../Map/MapView";
 
 const MapView = dynamic(() => import("../Map/MapView"), { ssr: false });
 

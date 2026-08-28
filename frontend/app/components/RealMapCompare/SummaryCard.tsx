@@ -1,8 +1,11 @@
 import React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Zap, X, StepForward, XCircle, AlertTriangle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { formatMs, formatNumber, formatDistance } from "@/lib/utils";
+import type { RealCompareResult } from "@/lib/types";
 import { useState } from "react";
 
 interface SummaryCardProps {
@@ -118,40 +121,11 @@ export default function SummaryCard({
 
       {/* Bảng số liệu */}
       <div className="bg-slate-50 rounded-lg p-3 mb-4 text-sm border border-slate-100">
-        <table className="w-full text-right">
-          <thead>
-            <tr className="text-slate-400 font-medium text-sm border-b border-slate-200">
-              <th className="text-left pb-1 font-medium"></th>
-              <th className="pb-1 font-medium text-blue-600">Dijkstra</th>
-              <th className="pb-1 font-medium text-teal-600">A*</th>
-            </tr>
-          </thead>
-          <tbody className="font-mono text-sm">
-            <tr>
-              <td className="text-left py-1.5 text-slate-500 font-sans font-medium">Thời gian</td>
-              <td className={`py-1.5 ${!astarFaster ? "text-emerald-600 font-bold" : "text-slate-600"}`}>
-                {formatMs(result.dijkstra.execution_time)}
-              </td>
-              <td className={`py-1.5 ${astarFaster ? "text-emerald-600 font-bold" : "text-slate-600"}`}>
-                {formatMs(result.astar.execution_time)}
-              </td>
-            </tr>
-            <tr className="border-t border-slate-100/50">
-              <td className="text-left py-1.5 text-slate-500 font-sans font-medium">Nút duyệt</td>
-              <td className={`py-1.5 ${!astarLessNodes ? "text-emerald-600 font-bold" : "text-slate-600"}`}>
-                {formatNumber(result.dijkstra.nodes_visited)}
-              </td>
-              <td className={`py-1.5 ${astarLessNodes ? "text-emerald-600 font-bold" : "text-slate-600"}`}>
-                {formatNumber(result.astar.nodes_visited)}
-              </td>
-            </tr>
-            <tr className="border-t border-slate-100/50">
-              <td className="text-left py-1.5 text-slate-500 font-sans font-medium">Quãng đường</td>
-              <td className="py-1.5 text-slate-600">{formatDistance(result.dijkstra.distance)}</td>
-              <td className="py-1.5 text-slate-800">{formatDistance(result.astar.distance)}</td>
-            </tr>
-          </tbody>
-        </table>
+        <MetricsTable
+          result={result}
+          astarFaster={astarFaster}
+          astarLessNodes={astarLessNodes}
+        />
       </div>
 
       {/* Toggle lý thuyết */}
@@ -182,5 +156,68 @@ export default function SummaryCard({
         Xem phân tích chi tiết <StepForward className="w-4 h-4 ml-2" />
       </Button>
     </Card>
+  );
+}
+
+// ── Bảng chỉ số (DataTable) ───────────────────────────────────────────────
+
+interface MetricsRow {
+  label: string;
+  dijkstra: React.ReactNode;
+  astar: React.ReactNode;
+}
+
+function MetricsTable({
+  result,
+  astarFaster,
+  astarLessNodes,
+}: {
+  result: RealCompareResult;
+  astarFaster: boolean;
+  astarLessNodes: boolean;
+}) {
+  const columns: ColumnDef<MetricsRow, unknown>[] = [
+    {
+      accessorKey: "label",
+      header: () => <span></span>,
+      cell: ({ row }) => <span className="text-left text-slate-500 font-sans font-medium">{row.original.label}</span>,
+    },
+    {
+      accessorKey: "dijkstra",
+      header: () => <span className="text-right block font-medium text-blue-600">Dijkstra</span>,
+      cell: ({ row }) => <div className="text-right font-mono">{row.original.dijkstra}</div>,
+    },
+    {
+      accessorKey: "astar",
+      header: () => <span className="text-right block font-medium text-teal-600">A*</span>,
+      cell: ({ row }) => <div className="text-right font-mono">{row.original.astar}</div>,
+    },
+  ];
+
+  const rows: MetricsRow[] = [
+    {
+      label: "Thời gian",
+      dijkstra: <span className={!astarFaster ? "text-emerald-600 font-bold" : "text-slate-600"}>{formatMs(result.dijkstra.execution_time)}</span>,
+      astar: <span className={astarFaster ? "text-emerald-600 font-bold" : "text-slate-600"}>{formatMs(result.astar.execution_time)}</span>,
+    },
+    {
+      label: "Nút duyệt",
+      dijkstra: <span className={!astarLessNodes ? "text-emerald-600 font-bold" : "text-slate-600"}>{formatNumber(result.dijkstra.nodes_visited)}</span>,
+      astar: <span className={astarLessNodes ? "text-emerald-600 font-bold" : "text-slate-600"}>{formatNumber(result.astar.nodes_visited)}</span>,
+    },
+    {
+      label: "Quãng đường",
+      dijkstra: <span className="text-slate-600">{formatDistance(result.dijkstra.distance)}</span>,
+      astar: <span className="text-slate-800">{formatDistance(result.astar.distance)}</span>,
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      data={rows}
+      getRowId={(row) => row.label}
+      enableSorting={false}
+    />
   );
 }
