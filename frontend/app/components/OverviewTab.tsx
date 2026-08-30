@@ -16,7 +16,6 @@ interface OverviewTabProps {
   backendConnected: boolean | null;
   osmStats: { loaded: boolean; nodes?: number; edges?: number };
   historyList: HistoryItem[];
-  historyCount: number;
   setActiveTab: (tab: TabId) => void;
   onRefresh?: () => void;
 }
@@ -25,7 +24,6 @@ export default function OverviewTab({
   backendConnected,
   osmStats,
   historyList,
-  historyCount,
   setActiveTab,
   onRefresh,
 }: OverviewTabProps) {
@@ -42,7 +40,7 @@ export default function OverviewTab({
       />
 
       {/* ── KPI Strip ────────────────────────────────── */}
-      <KPICards historyList={historyList} backendConnected={backendConnected} />
+      <KPICards historyList={historyList} />
 
       {/* ── Hero Experiment ──────────────────────────── */}
       <HeroExperiment latestRun={latestRun} setActiveTab={setActiveTab} />

@@ -7,11 +7,7 @@ import {
   BarChart3,
   History,
   Zap,
-  Server,
-  Globe,
 } from "lucide-react";
-import { formatNumber } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 export type TabId = "overview" | "compare" | "benchmark" | "history";
 

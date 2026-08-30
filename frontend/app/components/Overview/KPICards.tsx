@@ -5,10 +5,9 @@ import type { HistoryItem } from "@/lib/types";
 
 interface KPICardsProps {
   historyList: HistoryItem[];
-  backendConnected: boolean | null;
 }
 
-export default function KPICards({ historyList, backendConnected }: KPICardsProps) {
+export default function KPICards({ historyList }: KPICardsProps) {
   const stats = useMemo(() => {
     if (historyList.length === 0) return null;
 
@@ -30,10 +29,7 @@ export default function KPICards({ historyList, backendConnected }: KPICardsProp
         ? (((avgDijkTime - avgAstarTime) / avgDijkTime) * 100).toFixed(1)
         : "0";
 
-    const totalNodes = allAstar.reduce(
-      (s, r) => s + (r.nodes_visited || 0),
-      0
-    );
+    const totalNodes = allAstar.reduce((s, r) => s + (r.nodes_visited || 0), 0);
     const avgNodes = Math.round(totalNodes / (allAstar.length || 1));
 
     return {
@@ -108,11 +104,13 @@ export default function KPICards({ historyList, backendConnected }: KPICardsProp
         >
           {/* Gradient accent */}
           <div
-            className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-gradient-to-br ${card.gradient} opacity-5 group-hover:opacity-10 transition-opacity`}
+            className={`absolute -top-6 -right-6 w-24 h-24 rounded-full bg-linear-to-br ${card.gradient} opacity-5 group-hover:opacity-10 transition-opacity`}
           />
           <div className="relative z-10">
             <div className="flex items-center gap-2.5 mb-3">
-              <div className={`inline-flex p-2 rounded-lg ${card.bg} ${card.text}`}>
+              <div
+                className={`inline-flex p-2 rounded-lg ${card.bg} ${card.text}`}
+              >
                 {card.icon}
               </div>
               <div className="text-[16px] font-bold text-slate-700 uppercase   ">

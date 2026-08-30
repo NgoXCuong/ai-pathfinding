@@ -6,7 +6,8 @@ import { formatMs, formatNumber } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
-import { Lightbulb, ArrowDown, ArrowUp, Equal, XCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import AlgoCompareBar from "@/components/charts/AlgoCompareBar";
+import { Lightbulb, XCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 
 interface ComparisonResultsProps {
@@ -92,7 +93,6 @@ export default function ComparisonResults({ results }: ComparisonResultsProps) {
   const oneNotFound = !dijkstraFound || !astarFound;
 
   const astarWinsNodes = astarFound && dijkstraFound && astar.nodes_visited < dijkstra.nodes_visited;
-  const nodeDiff = dijkstra.nodes_visited - astar.nodes_visited;
   const timeDiff = dijkstra.execution_time - astar.execution_time;
 
   // ── Badge kết quả tổng hợp ──────────────────────────────
@@ -171,78 +171,35 @@ export default function ComparisonResults({ results }: ComparisonResultsProps) {
           </div>
         )}
 
-        {/* ── KPI Cards (chỉ hiển thị khi cả hai tìm được đường) ── */}
+        {/* ── Biểu đồ so sánh (chỉ hiển thị khi cả hai tìm được đường) ── */}
         {dijkstraFound && astarFound && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {/* KPI Nodes */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center relative overflow-hidden">
-              <h4 className="text-sm font-semibold text-slate-400 uppercase mb-4">Nút Đã Duyệt</h4>
-              <div className="flex justify-center items-center gap-6">
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">Dijkstra</div>
-                  <div className="text-lg font-bold text-slate-800">{formatNumber(dijkstra.nodes_visited)}</div>
-                </div>
-                <div className="text-slate-300">
-                  {astarWinsNodes ? <ArrowDown className="w-5 h-5 text-emerald-500" /> : (dijkstra.nodes_visited === astar.nodes_visited ? <Equal className="w-5 h-5" /> : <ArrowUp className="w-5 h-5 text-red-500" />)}
-                </div>
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">A*</div>
-                  <div className={`text-lg font-bold ${astarWinsNodes ? 'text-emerald-600' : 'text-slate-800'}`}>
-                    {formatNumber(astar.nodes_visited)}
-                  </div>
-                </div>
-              </div>
-              {astarWinsNodes && (
-                <div className="mt-4 inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full text-sm font-semibold">
-                  ↓ {comparison.nodes_improvement_pct}%
-                </div>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <AlgoCompareBar
+                label="Nút Đã Duyệt"
+                dijkstra={dijkstra.nodes_visited}
+                astar={astar.nodes_visited}
+                formatValue={(v) => formatNumber(v)}
+                improvement={astarWinsNodes ? `↓ ${comparison.nodes_improvement_pct}%` : undefined}
+              />
             </div>
-
-            {/* KPI Time */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <h4 className="text-sm font-semibold text-slate-400 uppercase mb-4">Thời Gian</h4>
-              <div className="flex justify-center items-center gap-6">
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">Dijkstra</div>
-                  <div className="text-lg font-bold text-slate-800">{formatMs(dijkstra.execution_time)}</div>
-                </div>
-                <div className="text-slate-300">
-                  {timeDiff > 0 ? <ArrowDown className="w-5 h-5 text-emerald-500" /> : <ArrowUp className="w-5 h-5 text-red-500" />}
-                </div>
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">A*</div>
-                  <div className={`text-lg font-bold ${timeDiff > 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                    {formatMs(astar.execution_time)}
-                  </div>
-                </div>
-              </div>
-              {timeDiff > 0 && (
-                <div className="mt-4 inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full text-sm font-semibold">
-                  ↓ {comparison.time_improvement_pct}%
-                </div>
-              )}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <AlgoCompareBar
+                label="Thời Gian"
+                dijkstra={dijkstra.execution_time}
+                astar={astar.execution_time}
+                formatValue={(v) => formatMs(v)}
+                improvement={timeDiff > 0 ? `↓ ${comparison.time_improvement_pct}%` : undefined}
+              />
             </div>
-
-            {/* KPI Path */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm text-center">
-              <h4 className="text-sm font-semibold text-slate-400 uppercase mb-4">Độ Dài Đường Đi</h4>
-              <div className="flex justify-center items-center gap-6">
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">Dijkstra</div>
-                  <div className="text-lg font-bold text-slate-800">{dijkstra.path?.length || 0}</div>
-                </div>
-                <div className="text-slate-300">
-                  {comparison.same_path_length ? <Equal className="w-5 h-5 text-emerald-500" /> : <span className="text-slate-400 font-bold">vs</span>}
-                </div>
-                <div className="text-center">
-                  <div className="text-[13px] text-slate-500 font-medium mb-1">A*</div>
-                  <div className="text-lg font-bold text-slate-800">{astar.path?.length || 0}</div>
-                </div>
-              </div>
-              <div className={`mt-4 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-sm font-semibold ${comparison.same_path_length ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {comparison.same_path_length ? "✓ Kết quả tương đương" : "Khác biệt"}
-              </div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <AlgoCompareBar
+                label="Độ Dài Đường Đi"
+                dijkstra={dijkstra.distance}
+                astar={astar.distance}
+                formatValue={(v) => formatNumber(v, 2)}
+                equal={comparison.same_path_length}
+              />
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import type { Heuristic, DrawMode } from "@/lib/types";
 import { generateGrid, compareAlgorithms, saveHistory } from "@/lib/api";
 import GridControlPanel from "./GridControlPanel";
@@ -32,7 +32,7 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   // Execution State
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
-  const [initialized, setInitialized] = useState(false);
+  const initializedRef = useRef(false);
 
   // Animation State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -46,16 +46,14 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   const maxVisited = results ? Math.max(results.dijkstra.visited_order?.length || 0, results.astar.visited_order?.length || 0) : 0;
   const maxPath = results ? Math.max(results.dijkstra.path?.length || 0, results.astar.path?.length || 0) : 0;
 
-  // INITIALIZATION
-  useEffect(() => {
-    if (!initialized) {
-      handleGenerateGrid(20, 0.25);
-      setInitialized(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialized]);
+  const resetAll = useCallback(() => {
+    setResults(null);
+    setIsPlaying(false);
+    setVisitedProgress(0);
+    setPathProgress(0);
+  }, []);
 
-  const handleGenerateGrid = async (size = gridSize, density = obstacleDensity) => {
+  const handleGenerateGrid = useCallback(async (size = gridSize, density = obstacleDensity) => {
     try {
       const res = await generateGrid(size, density);
       setObstacles(res.obstacles);
@@ -65,14 +63,15 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
     } catch (err) {
       console.error("Generate grid error", err);
     }
-  };
+  }, [gridSize, obstacleDensity, resetAll]);
 
-  const resetAll = () => {
-    setResults(null);
-    setIsPlaying(false);
-    setVisitedProgress(0);
-    setPathProgress(0);
-  };
+  // INITIALIZATION — chạy đúng 1 lần khi mount
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      handleGenerateGrid(20, 0.25);
+    }
+  }, [handleGenerateGrid]);
 
   // GRID INTERACTION HANDLERS
   const handleCellClick = useCallback((r: number, c: number) => {
@@ -259,7 +258,6 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
         heuristic={heuristic}
         setHeuristic={setHeuristic}
         onConfigChange={(size, density) => handleGenerateGrid(size, density)}
-        hasResults={!!results}
         loading={loading}
         animationSpeed={animationSpeed}
         setAnimationSpeed={setAnimationSpeed}

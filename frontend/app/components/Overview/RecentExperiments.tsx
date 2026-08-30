@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatMs, formatNumber } from "@/lib/utils";
+import { formatMs, formatNumber, formatTimeAgo } from "@/lib/utils";
 import type { HistoryItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
@@ -8,16 +8,6 @@ import { ArrowRight } from "lucide-react";
 export default function RecentExperiments({ historyList, setActiveTab }: { historyList: HistoryItem[], setActiveTab: any }) {
   if (historyList.length === 0) return null;
   const recent = historyList.slice(0, 5);
-
-  const formatTimeAgo = (dateStr: string) => {
-    const diffMs = Date.now() - new Date(dateStr).getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Vừa xong";
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    return `${Math.floor(diffHours / 24)} ngày trước`;
-  };
 
   return (
     <div>

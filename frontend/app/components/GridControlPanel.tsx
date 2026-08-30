@@ -2,14 +2,13 @@
 
 import React from "react";
 import {
-  Play, Pause, SkipForward, FastForward, RotateCcw,
-  Clock, StepForward, StepBack, Dices
+  FastForward, Dices
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import type { Heuristic, DrawMode } from "@/lib/types";
+import type { Heuristic } from "@/lib/types";
 
 interface GridControlPanelProps {
   // Config
@@ -24,7 +23,6 @@ interface GridControlPanelProps {
   onConfigChange: (size: number, density: number) => void;
 
   // Control actions
-  hasResults: boolean;
   loading: boolean;
 
   // Speed & Sync
@@ -38,7 +36,7 @@ export default function GridControlPanel({
   gridSize, setGridSize, obstacleDensity, setObstacleDensity,
   allowDiagonal, setAllowDiagonal, heuristic, setHeuristic,
   onConfigChange,
-  hasResults, loading,
+  loading,
   animationSpeed, setAnimationSpeed, isSynced, setIsSynced
 }: GridControlPanelProps) {
   return (

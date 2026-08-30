@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { checkBackend, getGraphStats, getHistory, deleteHistory } from "@/lib/api";
 import type { HistoryItem } from "@/lib/types";
 
@@ -19,12 +19,7 @@ export default function Dashboard() {
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  useEffect(() => {
-    fetchHealthStatus();
-    fetchHistory();
-  }, []);
-
-  const fetchHealthStatus = async () => {
+  const fetchHealthStatus = useCallback(async () => {
     try {
       const res = await checkBackend();
       setBackendConnected(res.status === "ok");
@@ -37,9 +32,9 @@ export default function Dashboard() {
     } catch {
       setOsmStats({ loaded: false });
     }
-  };
+  }, []);
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
       const data = await getHistory(100, 0);
@@ -49,7 +44,14 @@ export default function Dashboard() {
     } finally {
       setHistoryLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // Fetch-on-mount: hợp lệ, setState xảy ra trong callback bất đồng bộ
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchHealthStatus();
+    fetchHistory();
+  }, [fetchHealthStatus, fetchHistory]);
 
   const handleDeleteHistory = async (id: number) => {
     try {
@@ -75,7 +77,6 @@ export default function Dashboard() {
             backendConnected={backendConnected}
             osmStats={osmStats}
             historyList={historyList}
-            historyCount={historyList.length}
             setActiveTab={setActiveTab}
             onRefresh={fetchHistory}
           />

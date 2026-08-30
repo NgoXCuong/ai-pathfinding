@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { Heuristic } from "@/lib/types";
 import { loadOSMGraph, compareRealRoutes } from "@/lib/api";
 
@@ -119,11 +119,11 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
     setAnimationProgress(0);
   };
 
-  const getBatchSize = (maxNodes: number) => {
+  const getBatchSize = useCallback((maxNodes: number) => {
     const baseBatch = Math.max(1, Math.ceil(maxNodes / 300));
     const speedMultiplier = animationSpeed === 100 ? 50 : Math.max(1, animationSpeed / 10);
     return Math.floor(baseBatch * speedMultiplier);
-  };
+  }, [animationSpeed]);
 
   const stepForward = () => {
     if (!result) return;
@@ -165,7 +165,7 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       }, 30);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, result, animationSpeed]);
+  }, [isPlaying, result, getBatchSize]);
 
   const dijkstraMaxNodes = result?.dijkstra?.visited_coords?.length || 0;
   const astarMaxNodes = result?.astar?.visited_coords?.length || 0;

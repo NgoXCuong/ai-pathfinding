@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Integer, Float, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 
 
@@ -17,7 +16,7 @@ class SearchHistory(Base):
     map_type: Mapped[str] = mapped_column(String(20), default="grid")
     grid_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
 
     results: Mapped[list["RouteResult"]] = relationship(
@@ -41,28 +40,9 @@ class RouteResult(Base):
     path: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     found: Mapped[bool | None] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
 
     search: Mapped["SearchHistory"] = relationship(
         "SearchHistory", back_populates="results"
-    )
-
-
-class BenchmarkResult(Base):
-    __tablename__ = "benchmark_results"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    batch_id: Mapped[str] = mapped_column(String(36), index=True)
-    algorithm: Mapped[str] = mapped_column(String(20))
-    map_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    obstacle_density: Mapped[float | None] = mapped_column(Float, nullable=True)
-    heuristic: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    execution_time: Mapped[float] = mapped_column(Float)
-    nodes_visited: Mapped[int] = mapped_column(Integer)
-    path_distance: Mapped[float | None] = mapped_column(Float, nullable=True)
-    run_number: Mapped[int] = mapped_column(Integer)
-    found: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow
     )

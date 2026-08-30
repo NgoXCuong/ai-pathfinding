@@ -57,7 +57,7 @@ export default function ActiveExperiment({ latestRun, setActiveTab }: { latestRu
                      </div>
                   </div>
 
-                  <div className="flex-1 bg-slate-50 relative min-h-[280px] flex items-center justify-center p-4">
+                  <div className="flex-1 bg-slate-50 relative min-h-70 flex items-center justify-center p-4">
                      {isMap ? (
                         <div className="w-full h-full rounded-xl overflow-hidden pointer-events-none opacity-80 border border-slate-200">
                            <MapView

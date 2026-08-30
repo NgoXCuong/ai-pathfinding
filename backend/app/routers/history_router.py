@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
 from app.database import get_db
@@ -28,6 +29,7 @@ async def get_history(
     """Lấy lịch sử tìm đường (phân trang)."""
     stmt = (
         select(SearchHistory)
+        .options(selectinload(SearchHistory.results))
         .order_by(desc(SearchHistory.created_at))
         .offset(offset)
         .limit(limit)
@@ -35,12 +37,8 @@ async def get_history(
     result = await db.execute(stmt)
     histories = result.scalars().all()
 
-    # Load results cho mỗi history
     out = []
     for h in histories:
-        stmt2 = select(RouteResult).where(RouteResult.search_id == h.id)
-        r2 = await db.execute(stmt2)
-        results = r2.scalars().all()
         out.append({
             "id": h.id,
             "map_type": h.map_type,
@@ -60,7 +58,7 @@ async def get_history(
                     "steps": rr.steps,
                     "found": rr.found,
                 }
-                for rr in results
+                for rr in h.results
             ],
         })
 

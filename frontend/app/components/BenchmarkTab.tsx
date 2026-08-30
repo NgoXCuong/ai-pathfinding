@@ -636,7 +636,7 @@ export default function BenchmarkTab() {
                       </h5>
                       <ul className="text-sm text-blue-800 space-y-1.5">
                         <li>• Không dùng thông tin về vị trí đích</li>
-                        <li>• Mở rộng đồng đều ra mọi hướng như "sóng tròn"</li>
+                        <li>• Mở rộng đồng đều ra mọi hướng như sóng tròn</li>
                         <li>• Đảm bảo tìm đường ngắn nhất (trọng số ≥ 0)</li>
                         <li>• Tương đương A* với h(n) = 0</li>
                         <li>• ✅ Phù hợp: không biết vị trí đích</li>
