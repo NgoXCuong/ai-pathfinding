@@ -10,7 +10,6 @@ import {
   Play,
   StepBack,
   StepForward,
-  SkipForward,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { formatNumber } from "@/lib/utils";
-import type { Heuristic } from "@/lib/types";
+import type { Heuristic, RealCompareResult } from "@/lib/types";
 
 interface ControlPanelProps {
   realCity: string;
@@ -41,7 +40,7 @@ interface ControlPanelProps {
   handleReset: () => void;
   handleCompare: () => void;
   loading: boolean;
-  result: any;
+  result: RealCompareResult | null;
   isPlaying: boolean;
   setIsPlaying: (val: boolean) => void;
   stepBackward: () => void;

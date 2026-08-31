@@ -25,11 +25,9 @@ interface GridControlPanelProps {
   // Control actions
   loading: boolean;
 
-  // Speed & Sync
+  // Speed
   animationSpeed: number;
   setAnimationSpeed: (val: number) => void;
-  isSynced: boolean;
-  setIsSynced: (val: boolean) => void;
 }
 
 export default function GridControlPanel({
@@ -37,7 +35,7 @@ export default function GridControlPanel({
   allowDiagonal, setAllowDiagonal, heuristic, setHeuristic,
   onConfigChange,
   loading,
-  animationSpeed, setAnimationSpeed, isSynced, setIsSynced
+  animationSpeed, setAnimationSpeed
 }: GridControlPanelProps) {
   return (
     <Card className="border-slate-200 shadow-sm">
@@ -152,7 +150,7 @@ export default function GridControlPanel({
 
 
 
-            {/* SPEED & SYNC OPTIONS */}
+            {/* SPEED */}
             <div className="flex items-center gap-2.5 ml-2 border-l border-slate-400 pl-5 h-9">
               <FastForward className="w-4 h-4 text-slate-400" />
               <div className="w-[80px]">
@@ -165,19 +163,6 @@ export default function GridControlPanel({
                   className="py-1"
                 />
               </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="sync-mode"
-                checked={isSynced}
-                onChange={(e) => setIsSynced(e.target.checked)}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-              />
-              <label htmlFor="sync-mode" className="text-sm font-bold text-slate-500 uppercase cursor-pointer select-none">
-                Đồng bộ
-              </label>
             </div>
           </div>
 

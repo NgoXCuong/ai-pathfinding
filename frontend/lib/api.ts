@@ -4,6 +4,7 @@ export const API_BASE =
 // ─── Health ──────────────────────────────────────────────────────────────────
 export async function checkBackend() {
   const res = await fetch(`${API_BASE}/api/health`);
+  if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
   return res.json();
 }
 
@@ -107,6 +108,7 @@ export async function loadOSMGraph(city: string) {
 
 export async function getGraphStats() {
   const res = await fetch(`${API_BASE}/api/realmap/graph-stats`);
+  if (!res.ok) throw new Error(`Graph stats failed: ${res.status}`);
   return res.json();
 }
 
@@ -165,6 +167,7 @@ export async function getHistory(limit = 20, offset = 0) {
   const res = await fetch(
     `${API_BASE}/api/history/?limit=${limit}&offset=${offset}`,
   );
+  if (!res.ok) throw new Error(`History load failed: ${res.status}`);
   return res.json();
 }
 
@@ -198,5 +201,6 @@ export async function deleteHistory(id: number) {
   const res = await fetch(`${API_BASE}/api/history/${id}`, {
     method: "DELETE",
   });
+  if (!res.ok) throw new Error(`History delete failed: ${res.status}`);
   return res.json();
 }

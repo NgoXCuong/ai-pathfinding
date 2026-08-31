@@ -93,6 +93,7 @@ export interface RealRouteResult {
   algorithm: string;
   heuristic?: string;
   path_coords: [number, number][];
+  visited_coords?: [number, number][];
   execution_time: number;
   nodes_visited: number;
   distance: number;

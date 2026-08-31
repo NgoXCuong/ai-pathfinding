@@ -5,10 +5,11 @@ import type { HistoryItem } from "@/lib/types";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2, Route, RotateCcw } from "lucide-react";
+import type { TabId } from "../Sidebar";
 
 const MapView = dynamic(() => import("../Map/MapView"), { ssr: false });
 
-export default function ActiveExperiment({ latestRun, setActiveTab }: { latestRun?: HistoryItem, setActiveTab: any }) {
+export default function ActiveExperiment({ latestRun, setActiveTab }: { latestRun?: HistoryItem, setActiveTab: (tab: TabId) => void }) {
    if (!latestRun || !latestRun.results) {
       return (
          <Card className="border-slate-200 border-dashed shadow-sm">

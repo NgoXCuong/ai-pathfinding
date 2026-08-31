@@ -222,8 +222,8 @@ export default function BenchmarkTab() {
         heuristic,
       });
       setResult(res);
-    } catch (e: any) {
-      alert("Lỗi Benchmark: " + (e.message || e));
+    } catch (e: unknown) {
+      alert("Lỗi Benchmark: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }

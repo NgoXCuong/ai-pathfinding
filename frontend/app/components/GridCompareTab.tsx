@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import type { Heuristic, DrawMode } from "@/lib/types";
+import type { Heuristic, DrawMode, ComparisonResult, AlgorithmResult } from "@/lib/types";
 import { generateGrid, compareAlgorithms, saveHistory } from "@/lib/api";
 import GridControlPanel from "./GridControlPanel";
 import AlgorithmGridCard from "./AlgorithmGridCard";
@@ -31,13 +31,12 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
 
   // Execution State
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<ComparisonResult | null>(null);
   const initializedRef = useRef(false);
 
   // Animation State
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(50);
-  const [isSynced, setIsSynced] = useState(true); // Always true currently as logic is synced by visitedProgress
 
   // Progress State
   const [visitedProgress, setVisitedProgress] = useState(0);
@@ -119,8 +118,8 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
       });
       onHistoryUpdate();
       setIsPlaying(true);
-    } catch (err: any) {
-      alert("Lỗi khi tìm đường: " + (err.message || err));
+    } catch (err) {
+      alert("Lỗi khi tìm đường: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -231,7 +230,7 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   const aStatus = getStatus(results?.astar.visited_order?.length || 0, results?.astar.path?.length || 0);
 
   // Progress calculations
-  const calculateProgress = (algData: any) => {
+  const calculateProgress = (algData: AlgorithmResult | undefined) => {
     if (!algData) return 0;
     const vLen = algData.visited_order?.length || 0;
     const pLen = algData.path?.length || 0;
@@ -261,8 +260,6 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
         loading={loading}
         animationSpeed={animationSpeed}
         setAnimationSpeed={setAnimationSpeed}
-        isSynced={isSynced}
-        setIsSynced={setIsSynced}
       />
 
       {/* 2. Grids Area & Legend */}

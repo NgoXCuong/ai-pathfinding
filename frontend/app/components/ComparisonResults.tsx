@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { formatMs, formatNumber } from "@/lib/utils";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +8,11 @@ import { DataTable } from "@/components/ui/data-table";
 import AlgoCompareBar from "@/components/charts/AlgoCompareBar";
 import { Lightbulb, XCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { ComparisonResult } from "@/lib/types";
 
 interface ComparisonResultsProps {
-  results: any;
+  results: ComparisonResult | null;
 }
 
 interface TheoryRow {

@@ -1,6 +1,7 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import { Clock } from "lucide-react";
+import type { RealCompareResult } from "@/lib/types";
 
 const MapView = dynamic(() => import("../Map/MapView"), {
   ssr: false,
@@ -17,7 +18,7 @@ interface VisualizationProps {
   realGoal: { lat: number; lon: number } | null;
   handleMapClick: (lat: number, lon: number) => void;
   isAnimationComplete: boolean;
-  result: any;
+  result: RealCompareResult | null;
   animationProgress: number;
   heuristic: string;
 }

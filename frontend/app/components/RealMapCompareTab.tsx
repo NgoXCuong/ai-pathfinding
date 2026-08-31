@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import type { Heuristic } from "@/lib/types";
+import type { Heuristic, RealCompareResult } from "@/lib/types";
 import { loadOSMGraph, compareRealRoutes } from "@/lib/api";
 
 import ControlPanel from "./RealMapCompare/ControlPanel";
@@ -21,7 +21,7 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
   const [realStart, setRealStart] = useState<{ lat: number; lon: number } | null>(null);
   const [realGoal, setRealGoal] = useState<{ lat: number; lon: number } | null>(null);
   const [heuristic, setHeuristic] = useState<Heuristic>("euclidean");
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<RealCompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
@@ -57,9 +57,8 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       setTimeout(() => {
         setOsmStats({ loaded: true, nodes, edges });
       }, 500);
-    } catch (e: any) {
-      alert("Không thể tải OSM Graph: " + (e.message || e));
-      setLoadingGraphProgress(0);
+} catch (e: unknown) {
+      alert("Không thể tải OSM Graph: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => setLoadingGraph(false), 500);
@@ -104,8 +103,8 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       setResult(data);
       setAnimationProgress(0);
       setIsPlaying(true);
-    } catch (e: any) {
-      alert("Lỗi tìm đường bản đồ thực: " + (e.message || e));
+    } catch (e: unknown) {
+      alert("Lỗi tìm đường bản đồ thực: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setLoading(false);
     }

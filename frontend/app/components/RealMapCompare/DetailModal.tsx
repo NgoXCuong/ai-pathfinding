@@ -17,7 +17,7 @@ import AlgoCompareBar from "@/components/charts/AlgoCompareBar";
 interface DetailModalProps {
   showDetailModal: boolean;
   setShowDetailModal: (val: boolean) => void;
-  result: any;
+  result: RealCompareResult | null;
 }
 
 export default function DetailModal({

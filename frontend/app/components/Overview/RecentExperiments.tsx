@@ -2,10 +2,11 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMs, formatNumber, formatTimeAgo } from "@/lib/utils";
 import type { HistoryItem } from "@/lib/types";
+import type { TabId } from "../Sidebar";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
-export default function RecentExperiments({ historyList, setActiveTab }: { historyList: HistoryItem[], setActiveTab: any }) {
+export default function RecentExperiments({ historyList, setActiveTab }: { historyList: HistoryItem[], setActiveTab: (tab: TabId) => void }) {
   if (historyList.length === 0) return null;
   const recent = historyList.slice(0, 5);
 

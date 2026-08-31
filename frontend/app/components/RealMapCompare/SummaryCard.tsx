@@ -5,9 +5,10 @@ import { Card } from "@/components/ui/card";
 import AlgoCompareBar from "@/components/charts/AlgoCompareBar";
 import { formatMs, formatNumber, formatDistance } from "@/lib/utils";
 import { useState } from "react";
+import type { RealCompareResult } from "@/lib/types";
 
 interface SummaryCardProps {
-  result: any;
+  result: RealCompareResult | null;
   isAnimationComplete: boolean;
   isSummaryCollapsed: boolean;
   setIsSummaryCollapsed: (val: boolean) => void;
