@@ -25,7 +25,27 @@ const fmtNodes = (v: ValueType | undefined, _n: NameType | undefined): [string, 
 export default function PerformanceCharts({ historyList }: ChartsProps) {
   const [activeChart, setActiveChart] = useState<ChartTab>("Thời gian chạy");
 
-  if (historyList.length === 0) return null;
+  if (historyList.length === 0) {
+    return (
+      <Card className="border-slate-200 shadow-sm">
+        <CardContent className="p-0">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-blue-50">
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">Xu hướng hiệu suất</h3>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+            <BarChart3 className="w-10 h-10 mb-3" />
+            <p className="text-sm font-semibold">Chưa có dữ liệu thực nghiệm</p>
+            <p className="text-[13px] text-slate-300 mt-1">Chạy thực nghiệm so sánh để vẽ biểu đồ xu hướng</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const last10 = historyList.slice(0, 10).reverse();
   const lineData = last10.map((run, i) => {
@@ -40,16 +60,27 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
     };
   });
 
-  const heuristicRuns = historyList.filter((h) => h.map_type === "grid").slice(0, 6);
-  const barData = heuristicRuns.map((run, i) => {
+  // Gộp theo heuristic: tính trung bình nodes cho mỗi heuristic (chỉ grid)
+  const gridRuns = historyList.filter((h) => h.map_type === "grid");
+  const heuristicGroups = new Map<
+    string,
+    { astarNodes: number[]; dijkstraNodes: number[] }
+  >();
+  gridRuns.forEach((run) => {
     const astar = run.results?.find((r) => r.algorithm === "astar");
     const dijk = run.results?.find((r) => r.algorithm === "dijkstra");
-    return {
-      name: astar?.heuristic || `Run ${i + 1}`,
-      astar: astar?.execution_time ? Number(astar.execution_time.toFixed(4)) : 0,
-      dijkstra: dijk?.execution_time ? Number(dijk.execution_time.toFixed(4)) : 0,
-    };
+    const h = astar?.heuristic;
+    if (!h) return;
+    const group = heuristicGroups.get(h) || { astarNodes: [], dijkstraNodes: [] };
+    group.astarNodes.push(astar.nodes_visited || 0);
+    group.dijkstraNodes.push(dijk?.nodes_visited || 0);
+    heuristicGroups.set(h, group);
   });
+  const barData = Array.from(heuristicGroups.entries()).map(([name, g]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    astarNodes: Math.round(g.astarNodes.reduce((s, v) => s + v, 0) / g.astarNodes.length),
+    dijkstraNodes: Math.round(g.dijkstraNodes.reduce((s, v) => s + v, 0) / g.dijkstraNodes.length),
+  }));
 
   const sharedTooltipProps = {
     contentStyle: {
@@ -143,12 +174,12 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={barData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={(v) => `${v}ms`} />
-                    <Tooltip {...sharedTooltipProps} formatter={fmtMs} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={(v: number) => v > 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)} />
+                    <Tooltip {...sharedTooltipProps} formatter={fmtNodes} labelFormatter={(label) => `Heuristic: ${label} (trung bình nodes)`} />
                     <Legend iconType="square" wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 12 }} />
-                    <Bar name="Dijkstra" dataKey="dijkstra" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar name="A*" dataKey="astar" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                    <Bar name="Dijkstra" dataKey="dijkstraNodes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Bar name="A*" dataKey="astarNodes" fill="#06b6d4" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

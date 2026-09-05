@@ -52,7 +52,7 @@ export default function GridControlPanel({
               </label>
               <div className="w-[120px]">
                 <Select
-                  value={heuristic === "manhattan" ? "Manhattan" : heuristic === "euclidean" ? "Euclidean" : "Chebyshev"}
+                  value={heuristic === "manhattan" ? "Manhattan" : heuristic === "euclidean" ? "Euclidean" : heuristic === "octile" ? "Octile" : "Chebyshev"}
                   onValueChange={(val) => {
                     if (val) setHeuristic(val.toString().toLowerCase() as Heuristic);
                   }}
@@ -64,6 +64,7 @@ export default function GridControlPanel({
                     <SelectItem value="Manhattan" disabled={allowDiagonal}>Manhattan {allowDiagonal && "(Lỗi 8 hướng)"}</SelectItem>
                     <SelectItem value="Euclidean">Euclidean</SelectItem>
                     <SelectItem value="Chebyshev" disabled={!allowDiagonal}>Chebyshev {!allowDiagonal && "(Cần 8 hướng)"}</SelectItem>
+                    <SelectItem value="Octile" disabled={!allowDiagonal}>Octile {!allowDiagonal && "(Cần 8 hướng)"}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -83,7 +84,7 @@ export default function GridControlPanel({
                     setAllowDiagonal(is8Way);
                     if (is8Way && heuristic === "manhattan") {
                       setHeuristic("chebyshev");
-                    } else if (!is8Way && heuristic === "chebyshev") {
+                    } else if (!is8Way && (heuristic === "chebyshev" || heuristic === "octile")) {
                       setHeuristic("manhattan");
                     }
                   }}

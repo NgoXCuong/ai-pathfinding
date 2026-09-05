@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Route, XCircle } from "lucide-react";
 import { formatMs, formatNumber } from "@/lib/utils";
 import type { HistoryItem } from "@/lib/types";
 
@@ -8,10 +9,19 @@ interface ComparisonTableProps {
 }
 
 export default function ComparisonTable({ latestRun }: ComparisonTableProps) {
-  if (!latestRun?.results) return null;
+  if (!latestRun?.results) {
+    return (
+      <div className="bg-white border border-dashed border-slate-200 rounded-2xl shadow-sm p-8 flex flex-col items-center justify-center text-center h-full">
+        <Route className="w-10 h-10 text-slate-200 mb-3" />
+        <p className="text-sm font-semibold text-slate-400">Chưa có dữ liệu so sánh</p>
+        <p className="text-[13px] text-slate-300 mt-1">Thực hiện một lần chạy để xem so sánh chi tiết</p>
+      </div>
+    );
+  }
 
   const astar = latestRun.results.find((r) => r.algorithm === "astar") || latestRun.results[0];
   const dijkstra = latestRun.results.find((r) => r.algorithm === "dijkstra") || latestRun.results[0];
+  const notFound = astar?.found === false || dijkstra?.found === false;
 
   const dijkTime = dijkstra?.execution_time || 0;
   const astarTime = astar?.execution_time || 0;
@@ -86,7 +96,15 @@ export default function ComparisonTable({ latestRun }: ComparisonTableProps) {
         </p>
       </div>
 
-      <div className="divide-y divide-slate-100 flex-1">
+      {notFound ? (
+        <div className="px-6 py-8 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-full text-sm font-bold text-red-600">
+            <XCircle className="w-4 h-4" /> Không tìm được đường đi trong lần chạy này
+          </div>
+          <p className="text-sm text-slate-400 mt-3">Vật cản chặn hoàn toàn đường từ start đến goal.</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100 flex-1">
         {rows.map((row, i) => (
           <div key={i} className="px-6 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -144,7 +162,8 @@ export default function ComparisonTable({ latestRun }: ComparisonTableProps) {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

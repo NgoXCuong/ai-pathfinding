@@ -1,11 +1,11 @@
 "use client";
 import React from "react";
-import { formatMs, formatNumber } from "@/lib/utils";
+import { formatMs, formatNumber, formatDistance } from "@/lib/utils";
 import type { HistoryItem } from "@/lib/types";
 import type { TabId } from "../Sidebar";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowRight, CheckCircle2, Route, RotateCcw,
+  ArrowRight, CheckCircle2, Route, RotateCcw, XCircle,
   MapPin, Grid3X3, Clock, Network, Milestone, ArrowDown, Equal, ArrowUp,
 } from "lucide-react";
 
@@ -41,11 +41,15 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
   const dijkstra = latestRun.results.find((r) => r.algorithm === "dijkstra") || latestRun.results[0];
   const isOsm = latestRun.map_type === "osm";
   const envName = isOsm ? "OSM Real Map" : `Grid ${latestRun.grid_size}×${latestRun.grid_size}`;
+  const notFound = astar?.found === false || dijkstra?.found === false;
 
   const astarTime = astar?.execution_time || 0;
   const dijkTime = dijkstra?.execution_time || 0;
   const astarNodes = astar?.nodes_visited || 0;
   const dijkNodes = dijkstra?.nodes_visited || 0;
+  const astarDist = astar?.distance ?? 0;
+  const dijkDist = dijkstra?.distance ?? 0;
+  const fmtDist = (v: number) => isOsm ? formatDistance(v) : formatNumber(v, 2);
 
   const nodeImp = dijkNodes > 0 && dijkNodes > astarNodes
     ? ((dijkNodes - astarNodes) / dijkNodes * 100).toFixed(1) : null;
@@ -78,12 +82,12 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
       astarWidth: (dijkTime / maxTime) * 100,   // note: inverted intentionally for visual
     },
     {
-      label: "Số Bước Đường",
+      label: "Khoảng Cách",
       icon: <Milestone className="w-4 h-4" />,
-      dijkVal: String(dijkstra?.steps || 0),
-      astarVal: String(astar?.steps || 0),
-      winner: (astar?.steps || 0) === (dijkstra?.steps || 0) ? "equal" : (astar?.steps || 0) < (dijkstra?.steps || 0) ? "astar" : "dijkstra",
-      badge: (astar?.steps || 0) === (dijkstra?.steps || 0) ? "✓ Tối ưu chung" : null,
+      dijkVal: fmtDist(dijkDist),
+      astarVal: fmtDist(astarDist),
+      winner: Math.abs(dijkDist - astarDist) < 0.001 ? "equal" : astarDist < dijkDist ? "astar" : "dijkstra",
+      badge: Math.abs(dijkDist - astarDist) < 0.001 ? "✓ Tối ưu chung" : null,
       dijkWidth: 100,
       astarWidth: 100,
     },
@@ -109,10 +113,17 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[13px] font-bold border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Completed
-          </div>
+          {notFound ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 text-red-400 rounded-full text-[13px] font-bold border border-red-500/30">
+              <XCircle className="w-3.5 h-3.5" />
+              Không có đường đi
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-[13px] font-bold border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Completed
+            </div>
+          )}
           <Button
             variant="outline" size="sm"
             onClick={() => setActiveTab("compare")}
@@ -166,13 +177,13 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
                 {!isEqual && (
                   <div className="space-y-1.5 mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] w-10 text-blue-500 font-bold text-right">Dijk</span>
+                      <span className="text-[11px] w-10 text-blue-500 font-bold text-right">Dijk</span>
                       <div className="flex-1 bg-slate-100 rounded-full h-1.5">
                         <div className="h-full bg-blue-400 rounded-full" style={{ width: `${kpi.dijkWidth}%` }} />
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] w-10 text-cyan-500 font-bold text-right">A*</span>
+                      <span className="text-[11px] w-10 text-cyan-500 font-bold text-right">A*</span>
                       <div className="flex-1 bg-slate-100 rounded-full h-1.5">
                         <div
                           className={`h-full rounded-full ${astarWins ? "bg-gradient-to-r from-cyan-400 to-emerald-400" : "bg-cyan-400"}`}
@@ -206,12 +217,15 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
           <div>
             <h5 className="font-bold text-blue-900 mb-1 text-sm">Insight Phân Tích — Lần chạy gần nhất</h5>
             <p className="text-blue-800 text-sm leading-relaxed">
-              {nodeImp
-                ? <>Trong môi trường <strong>{envName}</strong>, A* duyệt ít hơn <strong>{nodeImp}%</strong> số node so với Dijkstra
+              {notFound ? (
+                <>Trong môi trường <strong>{envName}</strong>, cả hai thuật toán đều <strong>không tìm được đường</strong> do vật cản chặn hoàn toàn — đây là trường hợp cần thông báo &quot;không có lời giải&quot;.</>
+              ) : nodeImp ? (
+                <>Trong môi trường <strong>{envName}</strong>, A* duyệt ít hơn <strong>{nodeImp}%</strong> số node so với Dijkstra
                   {timeImp ? <> và chạy nhanh hơn <strong>{timeImp}%</strong></> : ""}
                   , nhờ sử dụng heuristic <strong className="capitalize">{astar?.heuristic || "mặc định"}</strong> để định hướng tìm kiếm.</>
-                : <>Trong thực nghiệm này, A* và Dijkstra có hiệu suất tương đương nhau — điều này thường xảy ra với bản đồ thưa hoặc cấu trúc vật cản đặc biệt.</>
-              }
+              ) : (
+                <>Trong thực nghiệm này, A* và Dijkstra có hiệu suất tương đương nhau — điều này thường xảy ra với bản đồ thưa hoặc cấu trúc vật cản đặc biệt.</>
+              )}
             </p>
           </div>
         </div>
@@ -246,22 +260,31 @@ export default function HeroExperiment({ latestRun, setActiveTab }: HeroExperime
 
         {/* ── Check marks ─────────────────────────────────── */}
         <div className="px-6 pb-5 flex flex-wrap gap-4">
-          {timeImp && (
-            <div className="flex items-center gap-1.5 text-sm text-slate-500">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              A* nhanh hơn <strong className="text-emerald-600 ml-0.5">{timeImp}%</strong>
+          {notFound ? (
+            <div className="flex items-center gap-1.5 text-sm text-red-500">
+              <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              Vật cản chặn hoàn toàn đường đến đích trong lần chạy này
             </div>
+          ) : (
+            <>
+              {timeImp && (
+                <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  A* nhanh hơn <strong className="text-emerald-600 ml-0.5">{timeImp}%</strong>
+                </div>
+              )}
+              {nodeImp && (
+                <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  Duyệt ít hơn <strong className="text-emerald-600 ml-0.5">{nodeImp}%</strong> node
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                Đường đi tối ưu được tìm thấy
+              </div>
+            </>
           )}
-          {nodeImp && (
-            <div className="flex items-center gap-1.5 text-sm text-slate-500">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              Duyệt ít hơn <strong className="text-emerald-600 ml-0.5">{nodeImp}%</strong> node
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 text-sm text-slate-500">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            Đường đi tối ưu được tìm thấy
-          </div>
         </div>
       </div>
     </div>

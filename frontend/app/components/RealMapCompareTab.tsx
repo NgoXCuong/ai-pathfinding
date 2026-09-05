@@ -24,7 +24,16 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
   const [result, setResult] = useState<RealCompareResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false);
+  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(true);
+
+  // Mặc định: collapsed trên mobile, tự mở trên desktop (lg >= 1024px)
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    if (mq.matches) setIsSummaryCollapsed(false);
+    const handleChange = (e: MediaQueryListEvent) => setIsSummaryCollapsed(!e.matches);
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
 
   // Animation State
   const [animationProgress, setAnimationProgress] = useState(0);

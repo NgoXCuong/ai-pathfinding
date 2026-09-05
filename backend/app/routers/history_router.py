@@ -47,7 +47,7 @@ async def get_history(
             "start_lon": h.start_lon,
             "end_lat": h.end_lat,
             "end_lon": h.end_lon,
-            "created_at": h.created_at.isoformat(),
+            "created_at": h.created_at.isoformat() + "Z",
             "results": [
                 {
                     "algorithm": rr.algorithm,

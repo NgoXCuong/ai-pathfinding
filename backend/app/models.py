@@ -5,6 +5,11 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
+def _utcnow() -> datetime:
+    """Thời gian UTC ở dạng naive (khớp cột TIMESTAMP WITHOUT TIME ZONE)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class SearchHistory(Base):
     __tablename__ = "search_history"
 
@@ -16,7 +21,7 @@ class SearchHistory(Base):
     map_type: Mapped[str] = mapped_column(String(20), default="grid")
     grid_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=_utcnow
     )
 
     results: Mapped[list["RouteResult"]] = relationship(
@@ -40,7 +45,7 @@ class RouteResult(Base):
     path: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     found: Mapped[bool | None] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=_utcnow
     )
 
     search: Mapped["SearchHistory"] = relationship(

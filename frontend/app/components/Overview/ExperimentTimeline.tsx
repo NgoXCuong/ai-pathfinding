@@ -18,7 +18,27 @@ export default function ExperimentTimeline({ historyList, setActiveTab }: Experi
   const totalPages = Math.max(1, Math.ceil(historyList.length / itemsPerPage));
   const validPage = Math.min(currentPage, totalPages);
 
-  if (historyList.length === 0) return null;
+  if (historyList.length === 0) {
+    return (
+      <Card className="border-slate-200 shadow-sm h-full flex flex-col">
+        <CardContent className="p-0 flex flex-col flex-1">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-slate-100">
+                <Clock className="w-4 h-4 text-slate-600" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">Lịch sử thực nghiệm</h3>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-center py-14 text-center text-slate-400 flex-1">
+            <Clock className="w-9 h-9 mb-3" />
+            <p className="text-sm font-semibold">Chưa có lịch sử thực nghiệm</p>
+            <p className="text-[13px] text-slate-300 mt-1">Các lần chạy sẽ xuất hiện tại đây</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   const recent = historyList.slice((validPage - 1) * itemsPerPage, validPage * itemsPerPage);
 
   return (
@@ -52,7 +72,10 @@ export default function ExperimentTimeline({ historyList, setActiveTab }: Experi
 
             let winnerText = null;
             let winnerColor = "";
-            if (dijkTime > 0 && astarTime > 0) {
+            if (astar?.found === false || dijk?.found === false) {
+              winnerText = "Không có đường đi";
+              winnerColor = "text-red-500";
+            } else if (dijkTime > 0 && astarTime > 0) {
               if (astarTime < dijkTime) {
                 winnerText = `A* nhanh hơn ${((dijkTime - astarTime) / dijkTime * 100).toFixed(0)}%`;
                 winnerColor = "text-emerald-600";

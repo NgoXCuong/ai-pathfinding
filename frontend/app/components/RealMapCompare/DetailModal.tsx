@@ -89,9 +89,9 @@ export default function DetailModal({
                   (Baseline)
                 </span>
               </div>
-              <div className="col-span-4 text-sm font-bold text-teal-700 text-center flex flex-col sm:block">
+              <div className="col-span-4 text-sm font-bold text-cyan-700 text-center flex flex-col sm:block">
                 A*{" "}
-                <span className="font-medium text-teal-600/70 text-sm sm:ml-1">
+                <span className="font-medium text-cyan-600/70 text-sm sm:ml-1">
                   ({result.heuristic})
                 </span>
               </div>
@@ -161,7 +161,7 @@ export default function DetailModal({
               {/* Nodes */}
               <div className="grid grid-cols-12 items-center px-6 py-5 hover:bg-slate-50/50 transition">
                 <div className="col-span-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                  <div className="p-2 bg-teal-50 text-teal-500 rounded-lg hidden sm:block">
+                  <div className="p-2 bg-cyan-50 text-cyan-500 rounded-lg hidden sm:block">
                     <Activity className="w-4 h-4" />
                   </div>
                   <span className="font-semibold text-slate-700 text-sm sm:text-base">
@@ -171,9 +171,9 @@ export default function DetailModal({
                 <div className="col-span-4 text-center font-mono text-base sm:text-lg font-medium text-slate-500">
                   {formatNumber(result.dijkstra.nodes_visited)}
                 </div>
-                <div className="col-span-4 text-center font-mono text-lg sm:text-xl font-bold text-teal-600 flex flex-col items-center justify-center">
+                <div className="col-span-4 text-center font-mono text-lg sm:text-xl font-bold text-cyan-600 flex flex-col items-center justify-center">
                   {formatNumber(result.astar.nodes_visited)}
-                  <span className="text-[13px] sm:text-[13px] font-bold text-white bg-teal-500 px-2 py-0.5 rounded-full mt-1 text-center leading-tight">
+                  <span className="text-[13px] sm:text-[13px] font-bold text-white bg-cyan-500 px-2 py-0.5 rounded-full mt-1 text-center leading-tight">
                     Giảm {result.comparison.nodes_improvement_pct}%
                   </span>
                 </div>
@@ -276,7 +276,7 @@ function TheoryTable({ result }: { result: RealCompareResult }) {
     {
       accessorKey: "astar",
       header: () => (
-        <span className="text-center block font-bold text-teal-700">
+        <span className="text-center block font-bold text-cyan-700">
           A* ({result.heuristic})
         </span>
       ),
@@ -295,7 +295,7 @@ function TheoryTable({ result }: { result: RealCompareResult }) {
         </span>
       ),
       astar: (
-        <span className="font-mono text-teal-700 font-semibold">
+        <span className="font-mono text-cyan-700 font-semibold">
           f(n) = g(n) + h(n)
         </span>
       ),
@@ -358,7 +358,7 @@ function TheoryTable({ result }: { result: RealCompareResult }) {
         </span>
       ),
       astar: (
-        <span className="text-teal-600 font-semibold">
+        <span className="text-cyan-600 font-semibold">
           {formatNumber(result.astar.nodes_visited)} node
         </span>
       ),

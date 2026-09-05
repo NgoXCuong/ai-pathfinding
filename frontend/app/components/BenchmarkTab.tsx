@@ -175,7 +175,7 @@ export default function BenchmarkTab() {
             {row.original.name.charAt(0).toUpperCase() +
               row.original.name.slice(1)}
             {isSelected && (
-              <span className="text-[10px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full ml-1.5">
+              <span className="text-[11px] bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded-full ml-1.5">
                 ĐANG DÙNG
               </span>
             )}

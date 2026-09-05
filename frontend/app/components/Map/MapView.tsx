@@ -118,6 +118,26 @@ export default function MapView({
 
   return (
     <div className="h-full w-full min-h-[500px] overflow-hidden rounded-xl border border-slate-200 z-0 relative">
+      {/* Legend overlay */}
+      <div className="absolute top-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-600 space-y-1 pointer-events-none">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: visitedColor, opacity: 0.5 }} />
+          Đã duyệt
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: pathColor }} />
+          Đường đi
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-emerald-500" />
+          Bắt đầu
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-500" />
+          Đích
+        </div>
+      </div>
+
       <MapContainer
         center={start ? [start.lat, start.lon] : defaultCenter}
         zoom={13}
