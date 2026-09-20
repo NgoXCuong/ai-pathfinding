@@ -1,35 +1,3 @@
-"""
-Thuật toán Dijkstra — Tìm đường đi ngắn nhất trong đồ thị có trọng số dương.
-
-=== LÝ THUYẾT ===
-Dijkstra (1959) giải quyết bài toán Single-Source Shortest Path (SSSP).
-
-Nguyên lý:
-  - Duy trì tập S (đã cố định khoảng cách nhỏ nhất) và hàng đợi ưu tiên (min-heap).
-  - Mỗi bước: chọn node u chưa thuộc S có dist[u] nhỏ nhất → đưa vào S.
-  - Cập nhật (relax) cạnh: nếu dist[u] + w(u,v) < dist[v] thì cập nhật dist[v].
-  - Lặp cho đến khi tất cả node được xử lý hoặc tìm thấy đích.
-
-Hàm đánh giá:
-  f(n) = g(n)
-  Trong đó g(n) = chi phí thực tế từ Start → n.
-  Dijkstra KHÔNG dùng heuristic → phải duyệt đồng đều mọi hướng.
-
-Độ phức tạp:
-  - Thời gian: O((V + E) log V)  [dùng Binary Heap]
-  - Không gian: O(V)
-  Trong đó V = số đỉnh, E = số cạnh.
-
-Tính chất:
-  - ✅ Complete (luôn tìm được đường nếu tồn tại)
-  - ✅ Optimal (tìm đường ngắn nhất, miễn trọng số ≥ 0)
-  - ❌ Không có thông tin hướng đến đích → duyệt nhiều node hơn A*
-
-So sánh với A*:
-  Dijkstra = A* với h(n) ≡ 0 (heuristic bằng 0 với mọi node).
-  Dijkstra phù hợp khi không biết vị trí đích hoặc không gian không có cấu trúc hình học rõ ràng.
-"""
-
 import heapq
 import time
 from typing import Any
@@ -43,25 +11,15 @@ def dijkstra_grid(
     allow_diagonal: bool = False,
 ) -> dict[str, Any]:
     """
-    Dijkstra trên Grid Map (lưới 2D).
-
     Tham số:
       grid[r][c] = 0: ô trống, 1: vật cản
       allow_diagonal: True → cho phép di chuyển 8 hướng (chi phí chéo = √2 ≈ 1.414)
                       False → chỉ 4 hướng (chi phí = 1.0)
-
-    Trả về:
-      path           : Danh sách (row, col) từ start → goal
-      visited_order  : Thứ tự các node được duyệt (dùng cho animation)
-      execution_time : Thời gian chạy (ms)
-      nodes_visited  : Tổng số node đã xử lý
-      distance       : Tổng chi phí đường đi (-1 nếu không tìm được)
-      found          : True nếu tìm được đường
     """
     rows = len(grid)
     cols = len(grid[0])
 
-    # 4 hướng (Manhattan) hoặc 8 hướng (Chebyshev)
+    # 4 hướng hoặc 8 hướng
     if allow_diagonal:
         DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
     else:
@@ -81,9 +39,16 @@ def dijkstra_grid(
     visited_order: list[tuple[int, int]] = []
     visited_set: set[tuple[int, int]] = set()
 
+    nodes_generated = 1
+    peak_memory = 1
+    search_steps = 0
+
     t0 = time.perf_counter()
 
     while heap:
+        search_steps += 1
+        peak_memory = max(peak_memory, len(heap) + len(visited_set))
+
         # Bước 1: Lấy node có dist nhỏ nhất khỏi heap
         d, r, c = heapq.heappop(heap)
 
@@ -111,6 +76,7 @@ def dijkstra_grid(
                     dist[nr][nc] = new_dist
                     prev[(nr, nc)] = (r, c)
                     heapq.heappush(heap, (new_dist, nr, nc))
+                    nodes_generated += 1
 
     t1 = time.perf_counter()
     execution_time = (t1 - t0) * 1000  # ms
@@ -118,46 +84,42 @@ def dijkstra_grid(
     # Tái tạo đường đi từ goal về start qua dict prev
     path = _reconstruct_path(prev, start, goal)
     distance = dist[goal[0]][goal[1]]
+    is_found = distance != float("inf")
 
     return {
         "path": path,
         "visited_order": visited_order,
         "execution_time": round(execution_time, 4),
         "nodes_visited": len(visited_set),
-        "distance": distance if distance != float("inf") else -1,
-        "found": distance != float("inf"),
+        "nodes_expanded": len(visited_set),
+        "nodes_generated": nodes_generated,
+        "peak_memory": peak_memory,
+        "search_steps": search_steps,
+        "path_length": len(path) if is_found else 0,
+        "path_cost": round(distance, 4) if is_found else -1,
+        "distance": distance if is_found else -1,
+        "found": is_found,
     }
 
-
-def dijkstra_graph(
-    graph: dict,
-    start: Any,
-    goal: Any,
-) -> dict[str, Any]:
-    """
-    Dijkstra trên Đồ thị thực tế (OSM — OpenStreetMap).
-
-    Tham số:
-      graph    : { node_id: [(neighbor_id, weight_meters), ...] }
-                 Trọng số là khoảng cách thực (mét) giữa 2 node GPS.
-
-    Ghi chú:
-      Đây là đồ thị có hướng (directed graph) từ dữ liệu OSM đường đi xe.
-      Dijkstra vẫn đảm bảo tìm đường ngắn nhất vì trọng số ≥ 0.
-    """
+def dijkstra_graph( graph: dict, start: Any, goal: Any, ) -> dict[str, Any]:
     dist: dict[Any, float] = {start: 0.0}
     prev: dict[Any, Any | None] = {start: None}
 
-    # Heap: (distance_meters, node_id)
     heap = [(0.0, start)]
     visited_set: set = set()
     visited_order: list[Any] = []
 
+    nodes_generated = 1
+    peak_memory = 1
+    search_steps = 0
+
     t0 = time.perf_counter()
 
     while heap:
-        d, node = heapq.heappop(heap)
+        search_steps += 1
+        peak_memory = max(peak_memory, len(heap) + len(visited_set))
 
+        d, node = heapq.heappop(heap)
         if node in visited_set:
             continue
         visited_set.add(node)
@@ -168,13 +130,13 @@ def dijkstra_graph(
         if node == goal:
             break
 
-        # Relaxation: duyệt các cạnh kề
         for neighbor, weight in graph.get(node, []):
             new_dist = d + weight
             if new_dist < dist.get(neighbor, float("inf")):
                 dist[neighbor] = new_dist
                 prev[neighbor] = node
                 heapq.heappush(heap, (new_dist, neighbor))
+                nodes_generated += 1
 
     t1 = time.perf_counter()
     execution_time = (t1 - t0) * 1000
@@ -187,6 +149,9 @@ def dijkstra_graph(
         "visited_order": visited_order,
         "execution_time": round(execution_time, 4),
         "nodes_visited": len(visited_set),
+        "nodes_generated": nodes_generated,
+        "peak_memory": peak_memory,
+        "search_steps": search_steps,
         "distance": round(distance, 2) if distance != float("inf") else -1,
         "found": distance != float("inf"),
     }

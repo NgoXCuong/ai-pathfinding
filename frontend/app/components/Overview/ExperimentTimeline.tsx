@@ -5,7 +5,7 @@ import type { HistoryItem } from "@/lib/types";
 import { formatMs, formatNumber, formatTimeAgo } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { TabId } from "../Sidebar";
-import { ArrowRight, Clock, Grid3X3, Map, Zap } from "lucide-react";
+import { ArrowRight, Clock, Grid3X3, Map, Zap, RotateCcw } from "lucide-react";
 
 interface ExperimentTimelineProps {
   historyList: HistoryItem[];
@@ -124,16 +124,30 @@ export default function ExperimentTimeline({ historyList, setActiveTab }: Experi
                 </div>
 
                 {/* Right side */}
-                <div className="shrink-0 text-right">
-                  {winnerText && (
-                    <div className={`text-[13px] font-bold ${winnerColor} flex items-center gap-0.5 justify-end mb-0.5`}>
-                      <Zap className="w-3 h-3" />
-                      {winnerText}
+                <div className="shrink-0 flex items-center gap-2">
+                  <div className="text-right">
+                    {winnerText && (
+                      <div className={`text-[12px] font-bold ${winnerColor} flex items-center gap-0.5 justify-end mb-0.5`}>
+                        <Zap className="w-3 h-3" />
+                        {winnerText}
+                      </div>
+                    )}
+                    <div className="text-[11px] text-slate-400 font-medium">
+                      {formatTimeAgo(run.created_at)}
                     </div>
-                  )}
-                  <div className="text-[13px] text-slate-400 font-medium">
-                    {formatTimeAgo(run.created_at)}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTab("compare");
+                    }}
+                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Mở tab So sánh"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </div>
             );

@@ -1,20 +1,24 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import type { Heuristic, RealCompareResult } from "@/lib/types";
-import { loadOSMGraph, compareRealRoutes } from "@/lib/api";
+import { loadOSMGraph, compareRealRoutes, saveHistory } from "@/lib/api";
 
 import ControlPanel from "./RealMapCompare/ControlPanel";
 import Visualization from "./RealMapCompare/Visualization";
-import SummaryCard from "./RealMapCompare/SummaryCard";
-import DetailModal from "./RealMapCompare/DetailModal";
+import RealMapComparisonResults from "./RealMapCompare/RealMapComparisonResults";
 
 interface RealMapCompareTabProps {
   osmStats: { loaded: boolean; nodes?: number; edges?: number };
   setOsmStats: (stats: { loaded: boolean; nodes?: number; edges?: number }) => void;
+  onHistoryUpdate?: () => void;
 }
 
-export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapCompareTabProps) {
+export default function RealMapCompareTab({
+  osmStats,
+  setOsmStats,
+  onHistoryUpdate,
+}: RealMapCompareTabProps) {
   const [realCity, setRealCity] = useState("hanoi");
   const [loadingGraph, setLoadingGraph] = useState(false);
   const [loadingGraphProgress, setLoadingGraphProgress] = useState(0);
@@ -23,38 +27,35 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
   const [heuristic, setHeuristic] = useState<Heuristic>("euclidean");
   const [result, setResult] = useState<RealCompareResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showDetailModal, setShowDetailModal] = useState(false);
-  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(true);
 
-  // Mặc định: collapsed trên mobile, tự mở trên desktop (lg >= 1024px)
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
-    if (mq.matches) setIsSummaryCollapsed(false);
-    const handleChange = (e: MediaQueryListEvent) => setIsSummaryCollapsed(!e.matches);
-    mq.addEventListener("change", handleChange);
-    return () => mq.removeEventListener("change", handleChange);
-  }, []);
-
-  // Animation State
-  const [animationProgress, setAnimationProgress] = useState(0);
+  // Independent animation state
+  const [dijkstraVisited, setDijkstraVisited] = useState(0);
+  const [astarVisited, setAstarVisited] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(50); // 1 to 100
 
+  // High-performance mutable animation ref
+  const animRef = useRef({ dV: 0, aV: 0 });
+  const mapAreaRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  const dijkstraTotal = result?.dijkstra?.visited_coords?.length || 0;
+  const astarTotal = result?.astar?.visited_coords?.length || 0;
+
   const handleLoadGraph = async () => {
     if (!realCity.trim()) {
-      alert("Vui lòng nhập khu vực muốn tải (VD: Hanoi, Vietnam)!");
+      alert("Vui lòng chọn khu vực muốn tải!");
       return;
     }
     setLoadingGraph(true);
     setLoadingGraphProgress(5);
 
-    // Simulate progress
     const progressInterval = setInterval(() => {
       setLoadingGraphProgress((prev) => {
         if (prev >= 90) return prev;
         return prev + Math.floor(Math.random() * 10) + 5;
       });
-    }, 500);
+    }, 400);
 
     try {
       const res = await loadOSMGraph(realCity);
@@ -62,11 +63,10 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       const edges = res.total_edges || res.edges;
       setLoadingGraphProgress(100);
 
-      // Delay slightly so user can see 100%
       setTimeout(() => {
         setOsmStats({ loaded: true, nodes, edges });
-      }, 500);
-} catch (e: unknown) {
+      }, 400);
+    } catch (e: unknown) {
       alert("Không thể tải OSM Graph: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       clearInterval(progressInterval);
@@ -85,7 +85,9 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       setRealGoal(null);
       setResult(null);
       setIsPlaying(false);
-      setAnimationProgress(0);
+      animRef.current = { dV: 0, aV: 0 };
+      setDijkstraVisited(0);
+      setAstarVisited(0);
     }
   };
 
@@ -95,7 +97,7 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
       return;
     }
     if (!osmStats.loaded) {
-      alert("Vui lòng tải đồ thị OSM trước!");
+      alert("Vui lòng tải dữ liệu đồ thị OSM trước!");
       return;
     }
 
@@ -109,9 +111,50 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
         endLon: realGoal.lon,
         heuristic,
       });
+
       setResult(data);
-      setAnimationProgress(0);
+      animRef.current = { dV: 0, aV: 0 };
+      setDijkstraVisited(0);
+      setAstarVisited(0);
       setIsPlaying(true);
+
+      // Lưu kết quả tìm đường bản đồ thực vào lịch sử
+      try {
+        await saveHistory({
+          mapType: "osm",
+          startLat: realStart.lat,
+          startLon: realStart.lon,
+          endLat: realGoal.lat,
+          endLon: realGoal.lon,
+          results: [
+            {
+              algorithm: "dijkstra",
+              execution_time: data.dijkstra.execution_time,
+              nodes_visited: data.dijkstra.nodes_visited,
+              distance: data.dijkstra.distance,
+              steps: data.dijkstra.steps,
+              found: data.dijkstra.found,
+            },
+            {
+              algorithm: "astar",
+              heuristic: heuristic,
+              execution_time: data.astar.execution_time,
+              nodes_visited: data.astar.nodes_visited,
+              distance: data.astar.distance,
+              steps: data.astar.steps,
+              found: data.astar.found,
+            },
+          ],
+        });
+        onHistoryUpdate?.();
+      } catch (err) {
+        console.warn("Không thể lưu lịch sử OSM:", err);
+      }
+
+      // Auto-scroll gently to the map area
+      setTimeout(() => {
+        mapAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (e: unknown) {
       alert("Lỗi tìm đường bản đồ thực: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -124,64 +167,119 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
     setRealGoal(null);
     setResult(null);
     setIsPlaying(false);
-    setAnimationProgress(0);
+    animRef.current = { dV: 0, aV: 0 };
+    setDijkstraVisited(0);
+    setAstarVisited(0);
   };
 
-  const getBatchSize = useCallback((maxNodes: number) => {
-    const baseBatch = Math.max(1, Math.ceil(maxNodes / 300));
-    const speedMultiplier = animationSpeed === 100 ? 50 : Math.max(1, animationSpeed / 10);
-    return Math.floor(baseBatch * speedMultiplier);
-  }, [animationSpeed]);
+  const handleSwapPoints = () => {
+    if (!realStart || !realGoal) return;
+    const temp = realStart;
+    setRealStart(realGoal);
+    setRealGoal(temp);
+    setResult(null);
+    setIsPlaying(false);
+    animRef.current = { dV: 0, aV: 0 };
+    setDijkstraVisited(0);
+    setAstarVisited(0);
+  };
+
+  const getStepBatch = useCallback(
+    (total: number) => {
+      const base = Math.max(1, Math.ceil(total / 150));
+      const multiplier = animationSpeed === 100 ? 5 : Math.max(0.2, animationSpeed / 50);
+      return Math.max(1, Math.floor(base * multiplier));
+    },
+    [animationSpeed]
+  );
+
+  const skipToEnd = () => {
+    if (!result) return;
+    setIsPlaying(false);
+    animRef.current = { dV: dijkstraTotal, aV: astarTotal };
+    setDijkstraVisited(dijkstraTotal);
+    setAstarVisited(astarTotal);
+  };
 
   const stepForward = () => {
     if (!result) return;
     setIsPlaying(false);
-    const dijkstraMax = result.dijkstra.visited_coords?.length || 0;
-    const astarMax = result.astar.visited_coords?.length || 0;
-    const maxNodes = Math.max(dijkstraMax, astarMax);
+    const s = animRef.current;
+    const dBatch = getStepBatch(dijkstraTotal);
+    const aBatch = getStepBatch(astarTotal);
 
-    setAnimationProgress((prev) => Math.min(maxNodes, prev + getBatchSize(maxNodes)));
+    if (s.dV < dijkstraTotal) s.dV = Math.min(dijkstraTotal, s.dV + dBatch);
+    if (s.aV < astarTotal) s.aV = Math.min(astarTotal, s.aV + aBatch);
+
+    setDijkstraVisited(s.dV);
+    setAstarVisited(s.aV);
   };
 
   const stepBackward = () => {
     if (!result) return;
     setIsPlaying(false);
-    const dijkstraMax = result.dijkstra.visited_coords?.length || 0;
-    const astarMax = result.astar.visited_coords?.length || 0;
-    const maxNodes = Math.max(dijkstraMax, astarMax);
+    const s = animRef.current;
+    const dBatch = getStepBatch(dijkstraTotal);
+    const aBatch = getStepBatch(astarTotal);
 
-    setAnimationProgress((prev) => Math.max(0, prev - getBatchSize(maxNodes)));
+    if (s.dV > 0) s.dV = Math.max(0, s.dV - dBatch);
+    if (s.aV > 0) s.aV = Math.max(0, s.aV - aBatch);
+
+    setDijkstraVisited(s.dV);
+    setAstarVisited(s.aV);
   };
 
-  // Animation Effect
+  // ── INDEPENDENT ANIMATION LOOP ───────────────────────────────────────────
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && result) {
       interval = setInterval(() => {
-        setAnimationProgress((prev) => {
-          const dijkstraMax = result.dijkstra.visited_coords?.length || 0;
-          const astarMax = result.astar.visited_coords?.length || 0;
-          const maxNodes = Math.max(dijkstraMax, astarMax);
+        const s = animRef.current;
+        const dBatch = getStepBatch(dijkstraTotal);
+        const aBatch = getStepBatch(astarTotal);
 
-          if (prev >= maxNodes) {
-            setIsPlaying(false);
-            return maxNodes;
-          }
+        let updated = false;
 
-          return Math.min(maxNodes, prev + getBatchSize(maxNodes));
-        });
-      }, 30);
+        // 1. DIJKSTRA PROGRESS
+        if (s.dV < dijkstraTotal) {
+          s.dV = Math.min(dijkstraTotal, s.dV + dBatch);
+          updated = true;
+        }
+
+        // 2. A* PROGRESS (Độc lập: khi chạm đích trước, NGAY LẬP TỨC hoàn thành và vẽ đường đi)
+        if (s.aV < astarTotal) {
+          s.aV = Math.min(astarTotal, s.aV + aBatch);
+          updated = true;
+        }
+
+        if (updated) {
+          setDijkstraVisited(s.dV);
+          setAstarVisited(s.aV);
+        }
+
+        // Cả 2 đã duyệt xong hết
+        if (s.dV >= dijkstraTotal && s.aV >= astarTotal) {
+          setIsPlaying(false);
+        }
+      }, 25);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, result, getBatchSize]);
+  }, [isPlaying, result, dijkstraTotal, astarTotal, getStepBatch]);
 
-  const dijkstraMaxNodes = result?.dijkstra?.visited_coords?.length || 0;
-  const astarMaxNodes = result?.astar?.visited_coords?.length || 0;
-  const totalAnimationNodes = Math.max(dijkstraMaxNodes, astarMaxNodes);
-  const isAnimationComplete = result && animationProgress >= totalAnimationNodes;
+  // Overall progress percentage
+  const totalNodesToAnimate = dijkstraTotal + astarTotal;
+  const currentAnimatedNodes = dijkstraVisited + astarVisited;
+  const progressPercent =
+    totalNodesToAnimate > 0
+      ? (currentAnimatedNodes / totalNodesToAnimate) * 100
+      : 0;
+
+  // A* draws its path immediately when its own visited count reaches its total
+  const isDijkstraPathVisible = dijkstraTotal > 0 && dijkstraVisited >= dijkstraTotal;
+  const isAstarPathVisible = astarTotal > 0 && astarVisited >= astarTotal;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ControlPanel
         realCity={realCity}
         setRealCity={setRealCity}
@@ -191,6 +289,7 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
         handleLoadGraph={handleLoadGraph}
         realStart={realStart}
         realGoal={realGoal}
+        handleSwapPoints={handleSwapPoints}
         heuristic={heuristic}
         setHeuristic={setHeuristic}
         animationSpeed={animationSpeed}
@@ -203,36 +302,29 @@ export default function RealMapCompareTab({ osmStats, setOsmStats }: RealMapComp
         setIsPlaying={setIsPlaying}
         stepBackward={stepBackward}
         stepForward={stepForward}
-        animationProgress={animationProgress}
-        setAnimationProgress={setAnimationProgress}
-        totalAnimationNodes={totalAnimationNodes}
+        skipToEnd={skipToEnd}
+        progressPercent={progressPercent}
       />
 
-      <div className="relative">
+      {/* 2 Bản đồ phóng to, trực quan, độc lập và không bị che khuất */}
+      <div ref={mapAreaRef}>
         <Visualization
           realStart={realStart}
           realGoal={realGoal}
           handleMapClick={handleMapClick}
-          isAnimationComplete={!!isAnimationComplete}
           result={result}
-          animationProgress={animationProgress}
           heuristic={heuristic}
-        />
-
-        <SummaryCard
-          result={result}
-          isAnimationComplete={!!isAnimationComplete}
-          isSummaryCollapsed={isSummaryCollapsed}
-          setIsSummaryCollapsed={setIsSummaryCollapsed}
-          setShowDetailModal={setShowDetailModal}
+          dijkstraVisitedCount={dijkstraVisited}
+          isDijkstraPathVisible={isDijkstraPathVisible}
+          astarVisitedCount={astarVisited}
+          isAstarPathVisible={isAstarPathVisible}
         />
       </div>
 
-      <DetailModal
-        showDetailModal={showDetailModal}
-        setShowDetailModal={setShowDetailModal}
-        result={result}
-      />
+      {/* Bảng đối đầu thông số kỹ thuật đầy đủ đặt ngay bên dưới bản đồ */}
+      <div ref={resultsRef}>
+        <RealMapComparisonResults result={result} />
+      </div>
     </div>
   );
 }

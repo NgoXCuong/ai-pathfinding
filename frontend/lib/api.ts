@@ -204,3 +204,12 @@ export async function deleteHistory(id: number) {
   if (!res.ok) throw new Error(`History delete failed: ${res.status}`);
   return res.json();
 }
+
+export async function clearAllHistory() {
+  const res = await fetch(`${API_BASE}/api/history/clear/all`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`Clear history failed: ${res.status}`);
+  return res.json();
+}
+

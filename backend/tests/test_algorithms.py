@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.algorithms.dijkstra import dijkstra_grid
-from app.algorithms.astar import astar_grid, HEURISTICS
+from app.algorithms.dijkstra import dijkstra_grid, dijkstra_graph
+from app.algorithms.astar import astar_grid, astar_graph, HEURISTICS
 from app.algorithms.grid import generate_grid, obstacles_to_grid
 
 
@@ -35,7 +35,7 @@ def test_astar_matches_dijkstra_4dir(size, density, seed, heuristic):
         # A* tối ưu → đường đi thực tế khớp Dijkstra
 
 
-@pytest.mark.parametrize("heuristic", ["euclidean", "chebyshev", "octile"])
+@pytest.mark.parametrize("heuristic", ["euclidean"])
 def test_astar_matches_dijkstra_8dir(heuristic):
     """A* 8 hướng với cost chéo √2 phải tối ưu (all admissible heuristics)."""
     grid = generate_grid(25, 0.25, seed=7)
@@ -96,7 +96,7 @@ def test_open_grid_straight_line():
     grid = make_grid(6, [])
     start, goal = (0, 0), (5, 5)
     d = dijkstra_grid(grid, start, goal, allow_diagonal=True)
-    a = astar_grid(grid, start, goal, heuristic="octile", allow_diagonal=True)
+    a = astar_grid(grid, start, goal, heuristic="euclidean", allow_diagonal=True)
 
     # 5 bước chéo × cost chéo 1.414 (code dùng xấp xỉ √2) = 7.07
     assert d["found"] and a["found"]
@@ -107,5 +107,35 @@ def test_open_grid_straight_line():
 # ── Heuristic ────────────────────────────────────────────────────────────────
 
 def test_all_heuristics_available():
-    """Bắt buộc đủ 4 heuristic để chạy trên UI."""
-    assert set(HEURISTICS.keys()) == {"manhattan", "euclidean", "chebyshev", "octile"}
+    """Bắt buộc đủ 2 heuristic để chạy trên UI."""
+    assert set(HEURISTICS.keys()) == {"manhattan", "euclidean"}
+
+
+def test_graph_algorithms():
+    """Kiểm tra tính đúng và các metric mở rộng của dijkstra_graph và astar_graph."""
+    graph = {
+        1: [(2, 10.0), (3, 15.0)],
+        2: [(4, 12.0)],
+        3: [(4, 10.0)],
+        4: [],
+    }
+    positions = {
+        1: (21.0, 105.0),
+        2: (21.01, 105.01),
+        3: (21.01, 105.0),
+        4: (21.02, 105.02),
+    }
+    d = dijkstra_graph(graph, 1, 4)
+    a = astar_graph(graph, positions, 1, 4)
+
+    assert d["found"] is True
+    assert a["found"] is True
+    assert d["distance"] == pytest.approx(22.0)
+    assert a["distance"] == pytest.approx(22.0)
+    assert "nodes_generated" in d
+    assert "peak_memory" in d
+    assert "nodes_generated" in a
+    assert "peak_memory" in a
+    assert a["nodes_visited"] > 0
+    assert d["nodes_visited"] > 0
+

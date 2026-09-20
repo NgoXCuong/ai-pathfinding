@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import { BarChart3, TrendingUp } from "lucide-react";
+import { formatNumber, formatMs } from "@/lib/utils";
 
 interface ChartsProps {
   historyList: HistoryItem[];
@@ -51,10 +52,17 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
   const lineData = last10.map((run, i) => {
     const astar = run.results?.find((r) => r.algorithm === "astar");
     const dijk = run.results?.find((r) => r.algorithm === "dijkstra");
+    const isOsm = run.map_type === "osm";
+    const sizeLabel = isOsm ? "OSM" : `${run.grid_size || 20}×${run.grid_size || 20}`;
+    const runNum = `#${historyList.length - (last10.length - 1 - i)}`;
     return {
-      name: `#${historyList.length - i - (historyList.length - last10.length)}`,
-      astarTime: astar?.execution_time ? Number(astar.execution_time.toFixed(4)) : 0,
-      dijkTime: dijk?.execution_time ? Number(dijk.execution_time.toFixed(4)) : 0,
+      name: `${runNum} (${sizeLabel})`,
+      runNum,
+      sizeLabel,
+      isOsm,
+      heuristic: astar?.heuristic || "euclidean",
+      astarTime: astar?.execution_time ? Number(astar.execution_time.toFixed(3)) : 0,
+      dijkTime: dijk?.execution_time ? Number(dijk.execution_time.toFixed(3)) : 0,
       astarNodes: astar?.nodes_visited || 0,
       dijkNodes: dijk?.nodes_visited || 0,
     };
@@ -81,6 +89,44 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
     astarNodes: Math.round(g.astarNodes.reduce((s, v) => s + v, 0) / g.astarNodes.length),
     dijkstraNodes: Math.round(g.dijkstraNodes.reduce((s, v) => s + v, 0) / g.dijkstraNodes.length),
   }));
+
+  const CustomChartTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: typeof lineData[number] }> }) => {
+    if (!active || !payload || !payload.length) return null;
+    const data = payload[0].payload;
+    const isNodes = activeChart === "Nodes đã thăm";
+    const dijkVal = isNodes ? `${formatNumber(data.dijkNodes)} nodes` : formatMs(data.dijkTime);
+    const astarVal = isNodes ? `${formatNumber(data.astarNodes)} nodes` : formatMs(data.astarTime);
+    const diff = isNodes
+      ? data.dijkNodes > 0
+        ? Math.round(((data.dijkNodes - data.astarNodes) / data.dijkNodes) * 100)
+        : 0
+      : data.dijkTime > 0
+      ? Math.round(((data.dijkTime - data.astarTime) / data.dijkTime) * 100)
+      : 0;
+
+    return (
+      <div className="bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-xl text-xs space-y-1.5 min-w-[170px]">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+          <span className="font-bold text-slate-800">{data.name}</span>
+          <span className="text-[10px] text-slate-400 capitalize font-medium">{data.heuristic}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-blue-600 font-bold">Dijkstra:</span>
+          <span className="font-mono font-semibold text-slate-700">{dijkVal}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-cyan-600 font-bold">A*:</span>
+          <span className="font-mono font-semibold text-slate-700">{astarVal}</span>
+        </div>
+        {diff > 0 && (
+          <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-[11px] text-emerald-600 font-bold">
+            <span>A* Tiết kiệm:</span>
+            <span>↓ {diff}%</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const sharedTooltipProps = {
     contentStyle: {
@@ -134,9 +180,9 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8" }} tickFormatter={(v) => `${v}ms`} />
-                  <Tooltip {...sharedTooltipProps} formatter={fmtMs} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 12 }} />
                   <Line {...commonLineProps} type="monotone" name="Dijkstra" dataKey="dijkTime" stroke="#3b82f6" dot={{ ...commonLineProps.dot, fill: "#3b82f6" }} />
                   <Line {...commonLineProps} type="monotone" name="A*" dataKey="astarTime" stroke="#06b6d4" dot={{ ...commonLineProps.dot, fill: "#06b6d4" }} />
@@ -151,14 +197,14 @@ export default function PerformanceCharts({ historyList }: ChartsProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#94a3b8", fontWeight: 600 }} dy={6} />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 10, fill: "#94a3b8" }}
                     tickFormatter={(v: number) => v > 1000 ? `${(v / 1000).toFixed(1)}k` : String(v)}
                   />
-                  <Tooltip {...sharedTooltipProps} formatter={fmtNodes} />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingTop: 12 }} />
                   <Line {...commonLineProps} type="monotone" name="Dijkstra" dataKey="dijkNodes" stroke="#3b82f6" dot={{ ...commonLineProps.dot, fill: "#3b82f6" }} />
                   <Line {...commonLineProps} type="monotone" name="A*" dataKey="astarNodes" stroke="#06b6d4" dot={{ ...commonLineProps.dot, fill: "#06b6d4" }} />

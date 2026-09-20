@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Heuristic, DrawMode, ComparisonResult, AlgorithmResult } from "@/lib/types";
 import { generateGrid, compareAlgorithms, saveHistory } from "@/lib/api";
 import GridControlPanel from "./GridControlPanel";
 import AlgorithmGridCard from "./AlgorithmGridCard";
 import ComparisonResults from "./ComparisonResults";
-import { Button } from "@/components/ui/button";
-import { Clock, RotateCcw, Play, Pause, StepBack, StepForward, SkipForward } from "lucide-react";
 
 interface GridCompareTabProps {
   onHistoryUpdate: () => void;
@@ -38,18 +36,28 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState(50);
 
-  // Progress State
-  const [visitedProgress, setVisitedProgress] = useState(0);
-  const [pathProgress, setPathProgress] = useState(0);
+  // Independent Progress States for Dijkstra and A*
+  const [dijkstraVisited, setDijkstraVisited] = useState(0);
+  const [dijkstraPath, setDijkstraPath] = useState(0);
+  const [astarVisited, setAstarVisited] = useState(0);
+  const [astarPath, setAstarPath] = useState(0);
 
-  const maxVisited = results ? Math.max(results.dijkstra.visited_order?.length || 0, results.astar.visited_order?.length || 0) : 0;
-  const maxPath = results ? Math.max(results.dijkstra.path?.length || 0, results.astar.path?.length || 0) : 0;
+  const animRef = useRef({ dV: 0, dP: 0, aV: 0, aP: 0 });
+  const gridAreaRef = useRef<HTMLDivElement | null>(null);
+
+  const dTotalVisited = results ? (results.dijkstra.visited_order?.length || 0) : 0;
+  const dTotalPath = results ? (results.dijkstra.path?.length || 0) : 0;
+  const aTotalVisited = results ? (results.astar.visited_order?.length || 0) : 0;
+  const aTotalPath = results ? (results.astar.path?.length || 0) : 0;
 
   const resetAll = useCallback(() => {
     setResults(null);
     setIsPlaying(false);
-    setVisitedProgress(0);
-    setPathProgress(0);
+    animRef.current = { dV: 0, dP: 0, aV: 0, aP: 0 };
+    setDijkstraVisited(0);
+    setDijkstraPath(0);
+    setAstarVisited(0);
+    setAstarPath(0);
   }, []);
 
   const handleGenerateGrid = useCallback(async (size = gridSize, density = obstacleDensity) => {
@@ -73,8 +81,10 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   }, [handleGenerateGrid]);
 
   // GRID INTERACTION HANDLERS
+  const isInteractingDisabled = isPlaying || dijkstraVisited > 0 || astarVisited > 0;
+
   const handleCellClick = useCallback((r: number, c: number) => {
-    if (isPlaying || visitedProgress > 0) return; // Prevent edit during/after run
+    if (isInteractingDisabled) return; // Prevent edit during/after run
     if (drawMode === "start") {
       setStartPos([r, c]);
     } else if (drawMode === "goal") {
@@ -87,12 +97,12 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
     } else if (drawMode === "erase") {
       setObstacles((prev) => prev.filter(([obsR, obsC]) => !(obsR === r && obsC === c)));
     }
-  }, [isPlaying, visitedProgress, drawMode, startPos, goalPos, obstacles]);
+  }, [isInteractingDisabled, drawMode, startPos, goalPos, obstacles]);
 
   const handleCellMouseEnter = useCallback((r: number, c: number) => {
-    if (!isMouseDown || isPlaying || visitedProgress > 0) return;
+    if (!isMouseDown || isInteractingDisabled) return;
     handleCellClick(r, c);
-  }, [isMouseDown, isPlaying, visitedProgress, handleCellClick]);
+  }, [isMouseDown, isInteractingDisabled, handleCellClick]);
 
   // EXECUTION
   const runCompare = async () => {
@@ -108,6 +118,7 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
         allowDiagonal,
       });
       setResults(data);
+      animRef.current = { dV: 0, dP: 0, aV: 0, aP: 0 };
       await saveHistory({
         mapType: "grid",
         gridSize,
@@ -118,6 +129,9 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
       });
       onHistoryUpdate();
       setIsPlaying(true);
+      setTimeout(() => {
+        gridAreaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 50);
     } catch (err) {
       alert("Lỗi khi tìm đường: " + (err instanceof Error ? err.message : String(err)));
     } finally {
@@ -129,124 +143,168 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
   const stepForward = () => {
     if (!results) return;
     setIsPlaying(false);
-    if (visitedProgress < maxVisited) {
-      setVisitedProgress(p => Math.min(maxVisited, p + 1));
-    } else if (pathProgress < maxPath) {
-      setPathProgress(p => Math.min(maxPath, p + 1));
-    }
+    const s = animRef.current;
+    if (s.dV < dTotalVisited) s.dV = Math.min(dTotalVisited, s.dV + 2);
+    else if (s.dP < dTotalPath) s.dP = Math.min(dTotalPath, s.dP + 1);
+
+    if (s.aV < aTotalVisited) s.aV = Math.min(aTotalVisited, s.aV + 2);
+    else if (s.aP < aTotalPath) s.aP = Math.min(aTotalPath, s.aP + 1);
+
+    setDijkstraVisited(s.dV);
+    setDijkstraPath(s.dP);
+    setAstarVisited(s.aV);
+    setAstarPath(s.aP);
   };
 
   const stepBackward = () => {
     if (!results) return;
     setIsPlaying(false);
-    if (pathProgress > 0) {
-      setPathProgress(p => Math.max(0, p - 1));
-    } else if (visitedProgress > 0) {
-      setVisitedProgress(p => Math.max(0, p - 1));
-    }
+    const s = animRef.current;
+    if (s.dP > 0) s.dP = Math.max(0, s.dP - 1);
+    else if (s.dV > 0) s.dV = Math.max(0, s.dV - 2);
+
+    if (s.aP > 0) s.aP = Math.max(0, s.aP - 1);
+    else if (s.aV > 0) s.aV = Math.max(0, s.aV - 2);
+
+    setDijkstraVisited(s.dV);
+    setDijkstraPath(s.dP);
+    setAstarVisited(s.aV);
+    setAstarPath(s.aP);
   };
 
   const skipToEnd = () => {
     if (!results) return;
     setIsPlaying(false);
-    setVisitedProgress(maxVisited);
-    setPathProgress(maxPath);
+    animRef.current = { dV: dTotalVisited, dP: dTotalPath, aV: aTotalVisited, aP: aTotalPath };
+    setDijkstraVisited(dTotalVisited);
+    setDijkstraPath(dTotalPath);
+    setAstarVisited(aTotalVisited);
+    setAstarPath(aTotalPath);
   };
 
-  // MAIN ANIMATION LOOP
+  // MAIN INDEPENDENT ANIMATION LOOP
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && results) {
       interval = setInterval(() => {
-        if (visitedProgress < maxVisited) {
-          setVisitedProgress(prev => {
-            const baseBatch = Math.max(1, Math.ceil(maxVisited / 120));
-            const speedMultiplier = animationSpeed === 100 ? 5 : Math.max(0.2, animationSpeed / 50);
-            const batch = Math.floor(baseBatch * speedMultiplier);
-            const next = prev + batch;
-            if (next >= maxVisited) return maxVisited;
-            return next;
-          });
-        } else if (pathProgress < maxPath) {
-          setPathProgress(prev => {
-            const next = prev + 1;
-            if (next >= maxPath) {
-              setIsPlaying(false);
-              return maxPath;
-            }
-            return next;
-          });
-        } else {
+        const s = animRef.current;
+        const maxSteps = Math.max(dTotalVisited, aTotalVisited, 1);
+        const baseBatch = Math.max(1, Math.ceil(maxSteps / 100));
+        const speedMultiplier = animationSpeed === 100 ? 5 : Math.max(0.2, animationSpeed / 50);
+        const batch = Math.max(1, Math.floor(baseBatch * speedMultiplier));
+        const pathBatch = Math.max(1, Math.floor(Math.max(1, speedMultiplier)));
+
+        let updated = false;
+
+        // 1. DIJKSTRA PROGRESS
+        if (s.dV < dTotalVisited) {
+          s.dV = Math.min(dTotalVisited, s.dV + batch);
+          updated = true;
+        } else if (s.dP < dTotalPath) {
+          // Dijkstra vẽ đường khi đã duyệt chạm đích
+          s.dP = Math.min(dTotalPath, s.dP + pathBatch);
+          updated = true;
+        }
+
+        // 2. A* PROGRESS (Độc lập: khi chạm đích trước, NGAY LẬP TỨC vẽ đường đi của A*)
+        if (s.aV < aTotalVisited) {
+          s.aV = Math.min(aTotalVisited, s.aV + batch);
+          updated = true;
+        } else if (s.aP < aTotalPath) {
+          // A* duyệt xong trước sẽ vẽ đường đi luôn!
+          s.aP = Math.min(aTotalPath, s.aP + pathBatch);
+          updated = true;
+        }
+
+        if (updated) {
+          setDijkstraVisited(s.dV);
+          setDijkstraPath(s.dP);
+          setAstarVisited(s.aV);
+          setAstarPath(s.aP);
+        }
+
+        // Kiểm tra xem cả hai đã vẽ xong toàn bộ chưa
+        const dFinished = s.dV >= dTotalVisited && s.dP >= dTotalPath;
+        const aFinished = s.aV >= aTotalVisited && s.aP >= aTotalPath;
+        if (dFinished && aFinished) {
           setIsPlaying(false);
         }
       }, 20);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, results, visitedProgress, pathProgress, maxVisited, maxPath, animationSpeed]);
+  }, [isPlaying, results, dTotalVisited, dTotalPath, aTotalVisited, aTotalPath, animationSpeed]);
 
-  // DERIVED DATA FOR GRID RENDER
-  const obstaclesSet = new Set(obstacles.map(([r, c]) => `${r},${c}`));
+  // DERIVED DATA FOR GRID RENDER (Tối ưu hóa với useMemo)
+  const obstaclesSet = useMemo(() => new Set(obstacles.map(([r, c]) => `${r},${c}`)), [obstacles]);
 
-  const dijkstraVisitedSet = new Set<string>();
-  const dijkstraPathSet = new Set<string>();
-  if (results) {
-    const dVisited = results.dijkstra.visited_order || [];
-    const dLimit = Math.min(visitedProgress, dVisited.length);
-    for (let i = 0; i < dLimit; i++) {
-      if (dVisited[i]) dijkstraVisitedSet.add(`${dVisited[i][0]},${dVisited[i][1]}`);
+  const dijkstraVisitedSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!results) return set;
+    const vList = results.dijkstra.visited_order || [];
+    const limit = Math.min(dijkstraVisited, vList.length);
+    for (let i = 0; i < limit; i++) {
+      if (vList[i]) set.add(`${vList[i][0]},${vList[i][1]}`);
     }
+    return set;
+  }, [results, dijkstraVisited]);
 
-    const dPath = results.dijkstra.path || [];
-    const dPathLimit = Math.min(pathProgress, dPath.length);
-    for (let i = 0; i < dPathLimit; i++) {
-      if (dPath[i]) dijkstraPathSet.add(`${dPath[i][0]},${dPath[i][1]}`);
+  const dijkstraPathSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!results) return set;
+    const pList = results.dijkstra.path || [];
+    const limit = Math.min(dijkstraPath, pList.length);
+    for (let i = 0; i < limit; i++) {
+      if (pList[i]) set.add(`${pList[i][0]},${pList[i][1]}`);
     }
-  }
+    return set;
+  }, [results, dijkstraPath]);
 
-  const astarVisitedSet = new Set<string>();
-  const astarPathSet = new Set<string>();
-  if (results) {
-    const aVisited = results.astar.visited_order || [];
-    const aLimit = Math.min(visitedProgress, aVisited.length);
-    for (let i = 0; i < aLimit; i++) {
-      if (aVisited[i]) astarVisitedSet.add(`${aVisited[i][0]},${aVisited[i][1]}`);
+  const astarVisitedSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!results) return set;
+    const vList = results.astar.visited_order || [];
+    const limit = Math.min(astarVisited, vList.length);
+    for (let i = 0; i < limit; i++) {
+      if (vList[i]) set.add(`${vList[i][0]},${vList[i][1]}`);
     }
+    return set;
+  }, [results, astarVisited]);
 
-    const aPath = results.astar.path || [];
-    const aPathLimit = Math.min(pathProgress, aPath.length);
-    for (let i = 0; i < aPathLimit; i++) {
-      if (aPath[i]) astarPathSet.add(`${aPath[i][0]},${aPath[i][1]}`);
+  const astarPathSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!results) return set;
+    const pList = results.astar.path || [];
+    const limit = Math.min(astarPath, pList.length);
+    for (let i = 0; i < limit; i++) {
+      if (pList[i]) set.add(`${pList[i][0]},${pList[i][1]}`);
     }
-  }
+    return set;
+  }, [results, astarPath]);
 
-  // Determine Status
-  const getStatus = (visitedLen: number, pathLen: number) => {
-    if (!results) return "ready";
-    if (pathProgress >= pathLen && visitedProgress >= visitedLen) return "completed";
-    return "running";
-  };
+  // Trạng thái từng thuật toán
+  const dStatus = !results
+    ? "ready"
+    : dijkstraPath >= dTotalPath && dijkstraVisited >= dTotalVisited
+    ? "completed"
+    : "running";
 
-  const dStatus = getStatus(results?.dijkstra.visited_order?.length || 0, results?.dijkstra.path?.length || 0);
-  const aStatus = getStatus(results?.astar.visited_order?.length || 0, results?.astar.path?.length || 0);
+  const aStatus = !results
+    ? "ready"
+    : astarPath >= aTotalPath && astarVisited >= aTotalVisited
+    ? "completed"
+    : "running";
 
-  // Progress calculations
-  const calculateProgress = (algData: AlgorithmResult | undefined) => {
-    if (!algData) return 0;
-    const vLen = algData.visited_order?.length || 0;
-    const pLen = algData.path?.length || 0;
-    const totalSteps = vLen + pLen;
-    if (totalSteps === 0) return 0;
+  const dProgress = dTotalVisited + dTotalPath > 0
+    ? Math.round(((dijkstraVisited + dijkstraPath) / (dTotalVisited + dTotalPath)) * 100)
+    : 0;
 
-    const currentSteps = Math.min(visitedProgress, vLen) + Math.min(pathProgress, pLen);
-    return Math.round((currentSteps / totalSteps) * 100);
-  };
-
-  const dProgress = calculateProgress(results?.dijkstra);
-  const aProgress = calculateProgress(results?.astar);
+  const aProgress = aTotalVisited + aTotalPath > 0
+    ? Math.round(((astarVisited + astarPath) / (aTotalVisited + aTotalPath)) * 100)
+    : 0;
 
   return (
-    <div className="space-y-6">
-      {/* 1. Control Panel */}
+    <div className="space-y-3.5">
+      {/* 1. Unified Control & Config Panel */}
       <GridControlPanel
         gridSize={gridSize}
         setGridSize={setGridSize}
@@ -258,127 +316,68 @@ export default function GridCompareTab({ onHistoryUpdate }: GridCompareTabProps)
         setHeuristic={setHeuristic}
         onConfigChange={(size, density) => handleGenerateGrid(size, density)}
         loading={loading}
+        hasResults={!!results}
+        runCompare={runCompare}
+        isPlaying={isPlaying}
+        setIsPlaying={setIsPlaying}
+        stepBackward={stepBackward}
+        stepForward={stepForward}
+        skipToEnd={skipToEnd}
+        drawMode={drawMode}
+        setDrawMode={setDrawMode}
         animationSpeed={animationSpeed}
         setAnimationSpeed={setAnimationSpeed}
       />
 
-      {/* 2. Grids Area & Legend */}
-      <div className="flex flex-col xl:flex-row gap-6 items-stretch">
-        {/* Left Side: Grids */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          <AlgorithmGridCard
-            title="Dijkstra"
-            subtitle="Thuật toán mù (Không dùng Heuristic)"
-            colorTheme="blue"
-            nodesCount={results ? results.dijkstra.nodes_visited : null}
-            found={results ? results.dijkstra.found : null}
-            status={dStatus}
-            progress={dProgress}
+      {/* 2. Grids Area: TOÀN BỘ CHIỀU RỘNG (100% Full Width 2 Cols) */}
+      <div ref={gridAreaRef} className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+        <AlgorithmGridCard
+          title="Dijkstra"
+          subtitle="Thuật toán mù (Không dùng Heuristic)"
+          colorTheme="blue"
+          nodesCount={results ? results.dijkstra.nodes_visited : null}
+          found={results ? results.dijkstra.found : null}
+          status={dStatus}
+          progress={dProgress}
 
-            gridSize={gridSize}
-            obstacles={obstaclesSet}
-            startPos={startPos}
-            goalPos={goalPos}
-            visitedNodes={dijkstraVisitedSet}
-            pathNodes={dijkstraPathSet}
+          gridSize={gridSize}
+          obstacles={obstaclesSet}
+          startPos={startPos}
+          goalPos={goalPos}
+          visitedNodes={dijkstraVisitedSet}
+          pathNodes={dijkstraPathSet}
 
-            interactive={!isPlaying && visitedProgress === 0}
-            onCellClick={handleCellClick}
-            onCellMouseEnter={handleCellMouseEnter}
-            onMouseDown={() => setIsMouseDown(true)}
-            onMouseUp={() => setIsMouseDown(false)}
-            onMouseLeave={() => setIsMouseDown(false)}
-          />
+          interactive={!isPlaying && dijkstraVisited === 0}
+          onCellClick={handleCellClick}
+          onCellMouseEnter={handleCellMouseEnter}
+          onMouseDown={() => setIsMouseDown(true)}
+          onMouseUp={() => setIsMouseDown(false)}
+          onMouseLeave={() => setIsMouseDown(false)}
+        />
 
-          <AlgorithmGridCard
-            title="A*"
-            subtitle={`Heuristic: ${heuristic.charAt(0).toUpperCase() + heuristic.slice(1)}`}
-            colorTheme="cyan"
-            nodesCount={results ? results.astar.nodes_visited : null}
-            found={results ? results.astar.found : null}
-            status={aStatus}
-            progress={aProgress}
+        <AlgorithmGridCard
+          title="A*"
+          subtitle={`Heuristic: ${heuristic.charAt(0).toUpperCase() + heuristic.slice(1)}`}
+          colorTheme="cyan"
+          nodesCount={results ? results.astar.nodes_visited : null}
+          found={results ? results.astar.found : null}
+          status={aStatus}
+          progress={aProgress}
 
-            gridSize={gridSize}
-            obstacles={obstaclesSet}
-            startPos={startPos}
-            goalPos={goalPos}
-            visitedNodes={astarVisitedSet}
-            pathNodes={astarPathSet}
+          gridSize={gridSize}
+          obstacles={obstaclesSet}
+          startPos={startPos}
+          goalPos={goalPos}
+          visitedNodes={astarVisitedSet}
+          pathNodes={astarPathSet}
 
-            interactive={!isPlaying && visitedProgress === 0}
-            onCellClick={handleCellClick}
-            onCellMouseEnter={handleCellMouseEnter}
-            onMouseDown={() => setIsMouseDown(true)}
-            onMouseUp={() => setIsMouseDown(false)}
-            onMouseLeave={() => setIsMouseDown(false)}
-          />
-        </div>
-
-        {/* Right Side: Tools & Legend */}
-        <div className="w-full xl:w-[160px] shrink-0 flex flex-col gap-5">
-
-          {/* Action Tools */}
-          <div className="flex flex-col gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="text-sm font-bold text-slate-400 uppercase     r border-b border-slate-100 pb-2">Điều khiển</div>
-
-            <Button size="sm" onClick={runCompare} disabled={loading} className="w-full h-9 font-semibold shadow-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white">
-              {loading ? <Clock className="w-4 h-4 animate-spin mr-1.5" /> : (!!results ? <RotateCcw className="w-4 h-4 mr-1.5" /> : <Play className="w-4 h-4 mr-1.5" />)}
-              {!!results ? "Chạy Lại" : "Chạy"}
-            </Button>
-
-            {!!results && (
-              <div className="flex flex-col gap-2 mt-2">
-                <Button
-                  variant="secondary" size="sm" className="w-full rounded-full shadow-sm bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                >
-                  {isPlaying ? <><Pause className="w-4 h-4 mr-1.5" /> Tạm dừng</> : <><Play className="w-4 h-4 mr-1.5" /> Tiếp tục</>}
-                </Button>
-
-                <div className="flex items-center justify-between gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200 shadow-sm mt-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:text-slate-900 bg-white shadow-sm" onClick={stepBackward} title="Lùi">
-                    <StepBack className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:text-slate-900 bg-white shadow-sm" onClick={stepForward} title="Tiến">
-                    <StepForward className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:text-slate-900 bg-white shadow-sm" onClick={skipToEnd} title="Bỏ qua">
-                    <SkipForward className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <div className="text-sm font-bold text-slate-400 uppercase     r border-b border-slate-100 pb-2 mt-3">Công cụ vẽ</div>
-            <div className="flex flex-col gap-1.5">
-              {([
-                { mode: "obstacle" as DrawMode, label: "🧱 Vẽ Cản" },
-                { mode: "erase" as DrawMode, label: "🧹 Xóa" },
-                { mode: "start" as DrawMode, label: "🟢 Bắt đầu" },
-                { mode: "goal" as DrawMode, label: "🔴 Kết thúc" },
-              ]).map((tool) => (
-                <Button
-                  key={tool.mode}
-                  variant={drawMode === tool.mode ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setDrawMode(tool.mode)}
-                  className={`w-full justify-start h-8 font-medium ${drawMode === tool.mode ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
-                >
-                  {tool.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex flex-row xl:flex-col items-center xl:items-start justify-center xl:justify-start gap-4 xl:gap-4 text-sm font-medium text-slate-600 bg-white py-4 px-5 rounded-2xl border border-slate-200 shadow-sm h-fit">
-            <div className="hidden xl:block text-sm font-bold text-slate-400 uppercase     r w-full border-b border-slate-100 pb-2">Ký hiệu</div>
-            <div className="flex items-center gap-2.5"><span className="w-3 h-3 rounded bg-slate-400 shadow-sm shrink-0"></span> Chướng ngại vật</div>
-            <div className="flex items-center gap-2.5"><span className="w-3 h-3 rounded bg-blue-300 shadow-sm shrink-0"></span> Đã duyệt</div>
-            <div className="flex items-center gap-2.5"><span className="w-3 h-3 rounded bg-purple-600 shadow-sm shrink-0"></span> Đường đi</div>
-          </div>
-        </div>
+          interactive={!isPlaying && astarVisited === 0}
+          onCellClick={handleCellClick}
+          onCellMouseEnter={handleCellMouseEnter}
+          onMouseDown={() => setIsMouseDown(true)}
+          onMouseUp={() => setIsMouseDown(false)}
+          onMouseLeave={() => setIsMouseDown(false)}
+        />
       </div>
 
       {/* 4. Results & KPIs */}

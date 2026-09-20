@@ -117,7 +117,7 @@ export default function MapView({
   const defaultCenter: [number, number] = [21.0285, 105.8542];
 
   return (
-    <div className="h-full w-full min-h-[500px] overflow-hidden rounded-xl border border-slate-200 z-0 relative">
+    <div className="h-full w-full overflow-hidden rounded-xl z-0 relative">
       {/* Legend overlay */}
       <div className="absolute top-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm rounded-lg shadow-md border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-600 space-y-1 pointer-events-none">
         <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export default function MapView({
         center={start ? [start.lat, start.lon] : defaultCenter}
         zoom={13}
         preferCanvas={true}
-        className="h-full w-full min-h-[500px] z-0"
+        className="h-full w-full z-0"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'

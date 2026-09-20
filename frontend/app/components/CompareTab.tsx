@@ -22,31 +22,32 @@ export default function CompareTab({ onHistoryUpdate, osmStats, setOsmStats }: C
   const [subTab, setSubTab] = useState<SubTab>("demo");
 
   return (
-    <div className="space-y-5 max-w-[1600px] mx-auto w-full">
+    <div className="space-y-3.5 max-w-[1600px] mx-auto w-full">
       {/* ── Header ─────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
-            <div className="w-1 h-5 rounded-full bg-gradient-to-b from-blue-400 to-indigo-500" />
-            <h2 className="text-2xl font-black text-slate-900  ">So Sánh Dijkstra vs A*</h2>
+            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-blue-400 to-indigo-500" />
+            <h2 className="text-xl font-black text-slate-900">So Sánh Dijkstra vs A*</h2>
           </div>
-          <p className="text-sm text-slate-400 font-medium pl-3">
+          <p className="text-xs text-slate-400 font-medium pl-3">
             Trực quan hoá và đo lường hiệu năng hai thuật toán tìm đường
           </p>
         </div>
 
         {/* Sub-tab pills */}
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
           {SUB_TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setSubTab(id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${subTab === id
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-200"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                subTab === id
+                  ? "bg-white text-blue-600 shadow-xs border border-slate-200"
                   : "text-slate-500 hover:text-slate-700"
-                }`}
+              }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               {label}
             </button>
           ))}
@@ -55,7 +56,13 @@ export default function CompareTab({ onHistoryUpdate, osmStats, setOsmStats }: C
 
       {/* ── Content ────────────────────────────── */}
       {subTab === "demo" && <GridCompareTab onHistoryUpdate={onHistoryUpdate} />}
-      {subTab === "map" && <RealMapCompareTab osmStats={osmStats} setOsmStats={setOsmStats} />}
+      {subTab === "map" && (
+        <RealMapCompareTab
+          osmStats={osmStats}
+          setOsmStats={setOsmStats}
+          onHistoryUpdate={onHistoryUpdate}
+        />
+      )}
     </div>
   );
 }

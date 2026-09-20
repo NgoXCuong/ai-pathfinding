@@ -42,11 +42,11 @@ export default function AlgorithmGridCard({
     : { title: "text-cyan-600", bg: "bg-cyan-500", lightBg: "bg-cyan-50", border: "border-cyan-100", progress: "bg-cyan-500" };
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full">
+    <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-2.5">
         <div>
-          <h3 className={`text-xl font-bold uppercase flex items-center gap-2 ${themeColors.title}`}>
+          <h3 className={`text-base sm:text-lg font-bold uppercase flex items-center gap-2 ${themeColors.title}`}>
             {title}
             {nodesCount !== null && (
               <>
@@ -55,37 +55,37 @@ export default function AlgorithmGridCard({
               </>
             )}
           </h3>
-          <p className="text-sm font-medium text-slate-500 mt-1">{subtitle}</p>
+          <p className="text-xs font-medium text-slate-500 mt-0.5">{subtitle}</p>
         </div>
 
         {/* Status Indicator */}
-        <div className="flex items-center gap-1.5 text-sm font-medium">
+        <div className="flex items-center gap-1.5 text-xs font-medium">
           {status === "ready" && (
-            <span className="text-slate-400 flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">
-              <CircleDashed className="w-4 h-4" /> Sẵn sàng
+            <span className="text-slate-400 flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
+              <CircleDashed className="w-3.5 h-3.5" /> Sẵn sàng
             </span>
           )}
           {status === "running" && (
-            <span className="text-amber-600 flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
-              <Loader2 className="w-4 h-4 animate-spin" /> Đang tìm... {progress}%
+            <span className="text-amber-600 flex items-center gap-1.5 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tìm... {progress}%
             </span>
           )}
           {status === "completed" && found !== false && (
-            <span className="text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              <CheckCircle2 className="w-4 h-4" /> Hoàn thành
+            <span className="text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Hoàn thành
             </span>
           )}
           {status === "completed" && found === false && (
-            <span className="text-red-600 flex items-center gap-1.5 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
-              <XCircle className="w-4 h-4" /> Không có đường đi
+            <span className="text-red-600 flex items-center gap-1.5 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+              <XCircle className="w-3.5 h-3.5" /> Không có đường đi
             </span>
           )}
         </div>
       </div>
 
-      {/* Grid Area */}
-      <div className="flex-1 flex justify-center items-center bg-slate-50/50 rounded-xl border border-slate-100">
-        <div className="w-full max-w-[600px] aspect-square relative shadow-sm rounded-lg overflow-hidden border border-slate-200/60 bg-white">
+      {/* Grid Area - Bung to chiếm trọn chiều rộng của Card */}
+      <div className="flex-1 flex justify-center items-center bg-slate-50/50 rounded-xl border border-slate-100 p-2 sm:p-3 w-full">
+        <div className="w-full aspect-square relative shadow-sm rounded-lg overflow-hidden border border-slate-200/60 bg-white">
           <GridCanvas
             gridSize={gridSize}
             obstacles={obstacles}
@@ -105,11 +105,11 @@ export default function AlgorithmGridCard({
           {/* No-path overlay: hiển thị khi thuật toán không tìm được đường */}
           {found === false && status === "completed" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50/85 backdrop-blur-[1px] animate-in fade-in duration-300">
-              <XCircle className="w-10 h-10 text-red-400 mb-2" />
-              <p className="text-red-600 font-bold text-sm text-center px-4">
+              <XCircle className="w-9 h-9 text-red-400 mb-1.5" />
+              <p className="text-red-600 font-bold text-xs text-center px-4">
                 Không tìm được đường đi
               </p>
-              <p className="text-red-400 text-xs text-center px-6 mt-1">
+              <p className="text-red-400 text-[11px] text-center px-6 mt-0.5">
                 Vật cản chặn hoàn toàn đường đến đích
               </p>
             </div>

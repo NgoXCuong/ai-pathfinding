@@ -1,15 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import type { TabId } from "./Sidebar";
 import type { HistoryItem } from "@/lib/types";
 
-import DashboardHeader from "./Overview/DashboardHeader";
+import DashboardHeader, { type MapFilterType } from "./Overview/DashboardHeader";
 import KPICards from "./Overview/KPICards";
 import HeroExperiment from "./Overview/HeroExperiment";
 import PerformanceCharts from "./Overview/PerformanceCharts";
 import AlgorithmInsight from "./Overview/AlgorithmInsight";
-import ComparisonTable from "./Overview/ComparisonTable";
+import ScalabilityBenchmark from "./Overview/ScalabilityBenchmark";
 import ExperimentTimeline from "./Overview/ExperimentTimeline";
 
 interface OverviewTabProps {
@@ -27,7 +27,24 @@ export default function OverviewTab({
   setActiveTab,
   onRefresh,
 }: OverviewTabProps) {
-  const latestRun = historyList.length > 0 ? historyList[0] : undefined;
+  const [mapFilter, setMapFilter] = useState<MapFilterType>("all");
+
+  const gridRunsCount = useMemo(
+    () => historyList.filter((h) => h.map_type === "grid").length,
+    [historyList]
+  );
+  const osmRunsCount = useMemo(
+    () => historyList.filter((h) => h.map_type === "osm").length,
+    [historyList]
+  );
+
+  const filteredHistoryList = useMemo(() => {
+    if (mapFilter === "grid") return historyList.filter((h) => h.map_type === "grid");
+    if (mapFilter === "osm") return historyList.filter((h) => h.map_type === "osm");
+    return historyList;
+  }, [historyList, mapFilter]);
+
+  const latestRun = filteredHistoryList.length > 0 ? filteredHistoryList[0] : undefined;
 
   return (
     <div className="max-w-8xl mx-auto w-full pb-12">
@@ -37,10 +54,15 @@ export default function OverviewTab({
         osmStats={osmStats}
         setActiveTab={setActiveTab}
         onRefresh={onRefresh}
+        mapFilter={mapFilter}
+        setMapFilter={setMapFilter}
+        totalRuns={historyList.length}
+        gridRunsCount={gridRunsCount}
+        osmRunsCount={osmRunsCount}
       />
 
       {/* ── KPI Strip ────────────────────────────────── */}
-      <KPICards historyList={historyList} />
+      <KPICards historyList={filteredHistoryList} />
 
       {/* ── Hero Experiment ──────────────────────────── */}
       <HeroExperiment latestRun={latestRun} setActiveTab={setActiveTab} />
@@ -48,20 +70,20 @@ export default function OverviewTab({
       {/* ── Charts + Insight (side by side) ─────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
         <div className="lg:col-span-2">
-          <PerformanceCharts historyList={historyList} />
+          <PerformanceCharts historyList={filteredHistoryList} />
         </div>
         <div className="lg:col-span-1">
-          <AlgorithmInsight historyList={historyList} />
+          <AlgorithmInsight historyList={filteredHistoryList} />
         </div>
       </div>
 
-      {/* ── Comparison Table + Timeline (side by side) ─ */}
+      {/* ── Scalability Benchmark + Timeline (side by side) ─ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         <div className="flex flex-col">
-          <ComparisonTable latestRun={latestRun} />
+          <ScalabilityBenchmark historyList={filteredHistoryList} />
         </div>
         <div className="flex flex-col">
-          <ExperimentTimeline historyList={historyList} setActiveTab={setActiveTab} />
+          <ExperimentTimeline historyList={filteredHistoryList} setActiveTab={setActiveTab} />
         </div>
       </div>
     </div>

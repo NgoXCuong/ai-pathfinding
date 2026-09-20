@@ -8,6 +8,7 @@ from app.osm_graph import (
     get_graph_stats,
     find_nearest_node,
     get_path_coords,
+    _haversine,
 )
 from app.algorithms.dijkstra import dijkstra_graph
 from app.algorithms.astar import astar_graph
@@ -22,7 +23,7 @@ class RouteRequest(BaseModel):
     end_lat: float
     end_lon: float
     algorithm: str = "dijkstra"   # "dijkstra" | "astar"
-    heuristic: str = "euclidean"  # "euclidean" | "manhattan" | "chebyshev" | "octile"
+    heuristic: str = "euclidean"  # "euclidean" | "manhattan"
 
 
 class CompareRequest(BaseModel):
@@ -105,7 +106,7 @@ def route(req: RouteRequest):
 
 @router.post("/compare")
 def compare(req: CompareRequest):
-    """Chạy cả hai thuật toán và so sánh."""
+    """Chạy cả hai thuật toán và so sánh với đầy đủ thông số kỹ thuật AI & GIS."""
     # Đảm bảo đồ thị của khu vực yêu cầu được load vào RAM
     success = load_osm_graph(req.city)
     if not success:
@@ -129,34 +130,83 @@ def compare(req: CompareRequest):
     dijk_visited_coords = get_path_coords(dijk.get("visited_order", []))
     astar_visited_coords = get_path_coords(astar_r.get("visited_order", []))
 
+    # Tính khoảng cách chim bay Haversine (straight-line distance in meters)
+    h_start = round(_haversine(req.start_lat, req.start_lon, req.end_lat, req.end_lon), 2)
+    stats = get_graph_stats()
+    total_nodes = stats.get("total_nodes", 0)
+
     def improvement(a: float, b: float) -> float:
         if a == 0:
             return 0.0
         return round((a - b) / a * 100, 2)
 
+    # Chỉ số chuyên sâu cho Dijkstra
+    dijk_dist = float(dijk["distance"]) if dijk["found"] else None
+    dijk_time = float(dijk["execution_time"])
+    dijk_nodes = int(dijk["nodes_visited"])
+    dijk_gen = int(dijk.get("nodes_generated", dijk_nodes))
+    dijk_mem = int(dijk.get("peak_memory", 0))
+    dijk_steps = len(dijk["path"])
+    dijk_coverage = round((dijk_nodes / total_nodes) * 100, 3) if total_nodes > 0 else 0.0
+    dijk_penetrance = round((dijk_steps / max(1, dijk_nodes)) * 100, 2)
+    dijk_detour = round(dijk_dist / h_start, 2) if dijk_dist and h_start > 0 else 1.0
+    dijk_throughput = round(dijk_nodes / (dijk_time / 1000), 1) if dijk_time > 0 else 0.0
+
+    # Chỉ số chuyên sâu cho A*
+    astar_dist = float(astar_r["distance"]) if astar_r["found"] else None
+    astar_time = float(astar_r["execution_time"])
+    astar_nodes = int(astar_r["nodes_visited"])
+    astar_gen = int(astar_r.get("nodes_generated", astar_nodes))
+    astar_mem = int(astar_r.get("peak_memory", 0))
+    astar_steps = len(astar_r["path"])
+    astar_coverage = round((astar_nodes / total_nodes) * 100, 3) if total_nodes > 0 else 0.0
+    astar_penetrance = round((astar_steps / max(1, astar_nodes)) * 100, 2)
+    astar_detour = round(astar_dist / h_start, 2) if astar_dist and h_start > 0 else 1.0
+    astar_throughput = round(astar_nodes / (astar_time / 1000), 1) if astar_time > 0 else 0.0
+
     return {
         "dijkstra": {
             "path_coords": dijk_coords,
             "visited_coords": dijk_visited_coords,
-            "execution_time": float(dijk["execution_time"]),
-            "nodes_visited": int(dijk["nodes_visited"]),
-            "distance": float(dijk["distance"]) if dijk["found"] else None,
-            "steps": len(dijk["path"]),
+            "execution_time": dijk_time,
+            "nodes_visited": dijk_nodes,
+            "nodes_generated": dijk_gen,
+            "peak_memory": dijk_mem,
+            "search_steps": int(dijk.get("search_steps", dijk_nodes)),
+            "distance": dijk_dist,
+            "steps": dijk_steps,
             "found": bool(dijk["found"]),
+            "map_coverage_pct": dijk_coverage,
+            "search_penetrance_pct": dijk_penetrance,
+            "detour_index": dijk_detour,
+            "throughput_nodes_sec": dijk_throughput,
         },
         "astar": {
             "path_coords": astar_coords,
             "visited_coords": astar_visited_coords,
-            "execution_time": float(astar_r["execution_time"]),
-            "nodes_visited": int(astar_r["nodes_visited"]),
-            "distance": float(astar_r["distance"]) if astar_r["found"] else None,
-            "steps": len(astar_r["path"]),
+            "execution_time": astar_time,
+            "nodes_visited": astar_nodes,
+            "nodes_generated": astar_gen,
+            "peak_memory": astar_mem,
+            "search_steps": int(astar_r.get("search_steps", astar_nodes)),
+            "distance": astar_dist,
+            "steps": astar_steps,
             "found": bool(astar_r["found"]),
+            "map_coverage_pct": astar_coverage,
+            "search_penetrance_pct": astar_penetrance,
+            "detour_index": astar_detour,
+            "throughput_nodes_sec": astar_throughput,
         },
         "comparison": {
-            "time_improvement_pct": float(improvement(dijk["execution_time"], astar_r["execution_time"])),
-            "nodes_improvement_pct": float(improvement(dijk["nodes_visited"], astar_r["nodes_visited"])),
-            "same_distance": bool(abs((dijk["distance"] or 0) - (astar_r["distance"] or 0)) < 10),
+            "time_improvement_pct": float(improvement(dijk_time, astar_time)),
+            "nodes_improvement_pct": float(improvement(dijk_nodes, astar_nodes)),
+            "generated_improvement_pct": float(improvement(dijk_gen, astar_gen)),
+            "memory_improvement_pct": float(improvement(dijk_mem, astar_mem)),
+            "same_distance": bool(abs((dijk_dist or 0) - (astar_dist or 0)) < 15),
+            "h_start": float(h_start),
+            "total_graph_nodes": int(total_nodes),
+            "winner_time": "astar" if astar_time < dijk_time else "dijkstra",
+            "winner_nodes": "astar" if astar_nodes < dijk_nodes else "dijkstra",
         },
         "heuristic": req.heuristic,
     }

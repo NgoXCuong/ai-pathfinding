@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { checkBackend, getGraphStats, getHistory, deleteHistory } from "@/lib/api";
+import { checkBackend, getGraphStats, getHistory, deleteHistory, clearAllHistory } from "@/lib/api";
 import type { HistoryItem } from "@/lib/types";
 
 import Sidebar, { type TabId } from "./components/Sidebar";
@@ -62,6 +62,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleClearAllHistory = async () => {
+    try {
+      await clearAllHistory();
+      setHistoryList([]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-800 overflow-hidden font-sans">
       <Sidebar
@@ -98,6 +107,8 @@ export default function Dashboard() {
             historyLoading={historyLoading}
             onRefresh={fetchHistory}
             onDelete={handleDeleteHistory}
+            onClearAll={handleClearAllHistory}
+            onNavigateCompare={() => setActiveTab("compare")}
           />
         )}
       </main>

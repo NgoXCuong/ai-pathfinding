@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, delete
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 
@@ -98,6 +98,17 @@ async def save_history(
 
     await db.commit()
     return {"id": history.id, "message": "Đã lưu thành công"}
+
+
+@router.delete("/clear/all")
+async def clear_all_history(
+    db: AsyncSession = Depends(get_db),
+):
+    """Xóa toàn bộ lịch sử thực thi."""
+    await db.execute(delete(RouteResult))
+    await db.execute(delete(SearchHistory))
+    await db.commit()
+    return {"message": "Đã xóa toàn bộ lịch sử"}
 
 
 @router.delete("/{history_id}")

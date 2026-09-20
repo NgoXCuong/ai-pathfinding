@@ -3,11 +3,18 @@ import { RefreshCw, Plus, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TabId } from "../Sidebar";
 
+export type MapFilterType = "all" | "grid" | "osm";
+
 interface DashboardHeaderProps {
   backendConnected: boolean | null;
   setActiveTab: (tab: TabId) => void;
   onRefresh?: () => void;
   osmStats?: { loaded: boolean; nodes?: number; edges?: number };
+  mapFilter: MapFilterType;
+  setMapFilter: (filter: MapFilterType) => void;
+  totalRuns: number;
+  gridRunsCount: number;
+  osmRunsCount: number;
 }
 
 export default function DashboardHeader({
@@ -15,6 +22,11 @@ export default function DashboardHeader({
   setActiveTab,
   onRefresh,
   osmStats,
+  mapFilter,
+  setMapFilter,
+  totalRuns,
+  gridRunsCount,
+  osmRunsCount,
 }: DashboardHeaderProps) {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
@@ -37,7 +49,7 @@ export default function DashboardHeader({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1 h-5 rounded-full bg-gradient-to-b from-cyan-400 to-blue-500" />
-            <h2 className="text-2xl font-black text-slate-900  ">
+            <h2 className="text-2xl font-black text-slate-900">
               PathFinder Dashboard
             </h2>
           </div>
@@ -48,7 +60,7 @@ export default function DashboardHeader({
 
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Live clock */}
-          <div className="px-3 py-2 bg-slate-900 text-white rounded-lg font-mono text-sm font-bold     r shrink-0">
+          <div className="px-3 py-2 bg-slate-900 text-white rounded-lg font-mono text-sm font-bold shrink-0">
             {time}
           </div>
 
@@ -95,8 +107,45 @@ export default function DashboardHeader({
         </div>
       </div>
 
+      {/* ── Environment Filter Bar ── */}
+      <div className="mt-4 flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">
+          Lọc Môi Trường:
+        </span>
+        <button
+          onClick={() => setMapFilter("all")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            mapFilter === "all"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          Tất cả ({totalRuns})
+        </button>
+        <button
+          onClick={() => setMapFilter("grid")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            mapFilter === "grid"
+              ? "bg-indigo-600 text-white shadow-sm"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          <span>▦</span> Lưới Grid ({gridRunsCount})
+        </button>
+        <button
+          onClick={() => setMapFilter("osm")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            mapFilter === "osm"
+              ? "bg-blue-600 text-white shadow-sm"
+              : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          <span>🌐</span> Bản đồ thực tế OSM ({osmRunsCount})
+        </button>
+      </div>
+
       {/* Divider */}
-      <div className="mt-5 h-px bg-gradient-to-r from-cyan-200 via-blue-200 to-transparent" />
+      <div className="mt-4 h-px bg-gradient-to-r from-cyan-200 via-blue-200 to-transparent" />
     </div>
   );
 }
